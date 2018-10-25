@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 
 namespace WebApiClient.DataAnnotations
 {
@@ -27,7 +28,18 @@ namespace WebApiClient.DataAnnotations
         /// <returns></returns>
         public bool IsDefinedScope(FormatScope scope)
         {
-            return scope == (scope & this.Scope);
+            if (this.Scope == FormatScope.All)
+            {
+                return true;
+            }
+            return this.Scope.HasFlag(scope);
         }
+
+        /// <summary>
+        /// 执行特性
+        /// </summary>
+        /// <param name="member">成员</param>
+        /// <param name="annotations">注解信息</param>
+        public abstract void Invoke(MemberInfo member, Annotations annotations);
     }
 }
