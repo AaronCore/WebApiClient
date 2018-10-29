@@ -15,18 +15,12 @@ namespace WebApiClient.Test.Attributes
         [Fact]
         public async Task IApiParameterAttributeTest()
         {
-            var context = new ApiActionContext
-            {
-                RequestMessage = new HttpApiRequestMessage
-                {
-                    RequestUri = new Uri("http://www.mywebapi.com"),
-                    Method = HttpMethod.Post
-                },
-                ApiActionDescriptor = ApiDescriptorCache.GetApiActionDescriptor(typeof(IMyApi).GetMethod("PostAsync"))
-            };
+            var context = new TestActionContext(
+                httpApi: null,
+                httpApiConfig: new HttpApiConfig { HttpHost = new Uri("http://www.mywebapi.com") },
+                apiActionDescriptor: new ApiActionDescriptor(typeof(IMyApi).GetMethod("PostAsync")));
 
-            var parameter = context.ApiActionDescriptor.Parameters[0];
-            parameter.Value = "laojiu";
+            var parameter = context.ApiActionDescriptor.Parameters[0].Clone("laojiu");
 
             IApiParameterAttribute attr = new TagsAttribute("key");
             await attr.BeforeRequestAsync(context, parameter);
@@ -36,15 +30,10 @@ namespace WebApiClient.Test.Attributes
         [Fact]
         public async Task IApiActionAttributeTest()
         {
-            var context = new ApiActionContext
-            {
-                RequestMessage = new HttpApiRequestMessage
-                {
-                    RequestUri = new Uri("http://www.mywebapi.com"),
-                    Method = HttpMethod.Post
-                },
-                ApiActionDescriptor = ApiDescriptorCache.GetApiActionDescriptor(typeof(IMyApi).GetMethod("PostAsync"))
-            };
+            var context = new TestActionContext(
+                httpApi: null,
+                httpApiConfig: new HttpApiConfig { HttpHost = new Uri("http://www.mywebapi.com") },
+                apiActionDescriptor: new ApiActionDescriptor(typeof(IMyApi).GetMethod("PostAsync")));
 
             var attr = new TagsAttribute("key", "laojiu");
             await attr.BeforeRequestAsync(context);

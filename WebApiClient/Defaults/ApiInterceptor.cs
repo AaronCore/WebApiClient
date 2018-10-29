@@ -10,9 +10,23 @@ namespace WebApiClient.Defaults
     public class ApiInterceptor : IApiInterceptor
     {
         /// <summary>
+        /// ApiActionDescriptor缓存
+        /// </summary>
+        private static readonly ConcurrentCache<MethodInfo, ApiActionDescriptor> descriptorCache;
+
+        /// <summary>
         /// 获取相关的配置
         /// </summary>
         public HttpApiConfig HttpApiConfig { get; private set; }
+
+
+        /// <summary>
+        /// http接口调用的拦截器
+        /// </summary>
+        static ApiInterceptor()
+        {
+            descriptorCache = new ConcurrentCache<MethodInfo, ApiActionDescriptor>();
+        }
 
         /// <summary>
         /// http接口调用的拦截器
@@ -34,7 +48,7 @@ namespace WebApiClient.Defaults
         public virtual object Intercept(object target, MethodInfo method, object[] parameters)
         {
             var descriptor = this.GetApiActionDescriptor(method, parameters);
-            var apiTask = descriptor.Return.DataType.ITaskConstructor.Invoke(null) as ApiTask;
+            var apiTask = descriptor.Return.DataType.ITaskFactory.Invoke() as ApiTask;
 
             apiTask.HttpApi = target as IHttpApi;
             apiTask.HttpApiConfig = this.HttpApiConfig;
@@ -54,16 +68,11 @@ namespace WebApiClient.Defaults
         /// 获取api的描述
         /// </summary>
         /// <param name="method">接口的方法</param>
-        /// <param name="parameters">参数集合</param>
+        /// <param name="parameters">参数值集合</param>
         /// <returns></returns>
         protected virtual ApiActionDescriptor GetApiActionDescriptor(MethodInfo method, object[] parameters)
         {
-            var actionDescripter = ApiDescriptorCache.GetApiActionDescriptor(method).Clone();
-            for (var i = 0; i < actionDescripter.Parameters.Length; i++)
-            {
-                actionDescripter.Parameters[i].Value = parameters[i];
-            }
-            return actionDescripter;
+            return descriptorCache.GetOrAdd(method, m => new ApiActionDescriptor(m)).Clone(parameters);
         }
 
         /// <summary>

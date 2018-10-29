@@ -22,18 +22,15 @@ namespace WebApiClient.Test.Attributes
         [Fact]
         public async Task IApiParameterAttributeTest()
         {
-            var context = new ApiActionContext
-            {
-                RequestMessage = new HttpApiRequestMessage
-                {
-                    RequestUri = new Uri("http://www.mywebapi.com"),
-                    Method = HttpMethod.Post
-                },
-                ApiActionDescriptor = ApiDescriptorCache.GetApiActionDescriptor(typeof(IMyApi).GetMethod("PostAsync"))
-            };
+            var context = new TestActionContext(
+                httpApi: null,
+                httpApiConfig: new HttpApiConfig(),
+                apiActionDescriptor: new ApiActionDescriptor(typeof(IMyApi).GetMethod("PostAsync")));
 
-            var parameter = context.ApiActionDescriptor.Parameters[0];
-            parameter.Value = "laojiu";
+            context.RequestMessage.RequestUri = new Uri("http://www.webapi.com/");
+            context.RequestMessage.Method = HttpMethod.Post; 
+
+            var parameter = context.ApiActionDescriptor.Parameters[0].Clone("laojiu");
 
             IApiParameterAttribute attr = new MulitpartTextAttribute();
             await attr.BeforeRequestAsync(context, parameter);
@@ -41,7 +38,7 @@ namespace WebApiClient.Test.Attributes
             Assert.Contains(get("name", "laojiu"), body);
 
             // IgnoreWhenNull Test
-            parameter.Value = null;
+            parameter = parameter.Clone(null);
             ((MulitpartTextAttribute)attr).IgnoreWhenNull = true;
             await attr.BeforeRequestAsync(context, parameter);
             body = await context.RequestMessage.Content.ReadAsStringAsync();
@@ -51,15 +48,13 @@ namespace WebApiClient.Test.Attributes
         [Fact]
         public async Task IApiActionAttributeTest()
         {
-            var context = new ApiActionContext
-            {
-                RequestMessage = new HttpApiRequestMessage
-                {
-                    RequestUri = new Uri("http://www.mywebapi.com"),
-                    Method = HttpMethod.Post
-                },
-                ApiActionDescriptor = ApiDescriptorCache.GetApiActionDescriptor(typeof(IMyApi).GetMethod("PostAsync"))
-            };
+            var context = new TestActionContext(
+                httpApi: null,
+                httpApiConfig: new HttpApiConfig(),
+                apiActionDescriptor: new ApiActionDescriptor(typeof(IMyApi).GetMethod("PostAsync")));
+
+            context.RequestMessage.RequestUri = new Uri("http://www.webapi.com/");
+            context.RequestMessage.Method = HttpMethod.Post; 
 
             var attr = new MulitpartTextAttribute("name", "laojiu");
             await attr.BeforeRequestAsync(context);

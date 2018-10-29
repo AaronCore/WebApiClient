@@ -1,6 +1,5 @@
 ﻿#if JIT
 using System;
-using System.Collections.Concurrent;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -8,11 +7,10 @@ using System.Reflection.Emit;
 namespace WebApiClient
 {
     /// <summary>
-    /// 提供HttpApiClient代理类生成
-    /// 不支持泛型方法的接口
-    /// 不支持ref/out参数的接口
+    /// 表示HttpApiClient代理描述
+    /// 提供HttpApiClient代理类的实例化
     /// </summary>
-    static class HttpApiClientProxy
+    partial class HttpApiClientProxy
     {
         /// <summary>
         /// IApiInterceptor的Intercept方法
@@ -30,14 +28,9 @@ namespace WebApiClient
         private static readonly Type[] proxyTypeCtorArgTypes = new Type[] { typeof(IApiInterceptor), typeof(MethodInfo[]) };
 
         /// <summary>
-        /// 程序集HashCode^模块HashCode与模块创建器的缓存
+        /// 接口类型与代理描述缓存
         /// </summary>
-        private static readonly ConcurrentDictionary<int, ModuleBuilder> hashCodeModuleBuilderCache = new ConcurrentDictionary<int, ModuleBuilder>();
-
-        /// <summary>
-        /// 接口类型与代理类型的构造器缓存
-        /// </summary>
-        private static readonly ConcurrentCache<Type, ConstructorInfo> proxyTypeCtorCache = new ConcurrentCache<Type, ConstructorInfo>();
+        private static readonly ConcurrentCache<Type, HttpApiClientProxy> interfaceProxyCache = new ConcurrentCache<Type, HttpApiClientProxy>();
 
         /// <summary>
         /// 返回HttpApiClient代理类的实例
@@ -47,7 +40,7 @@ namespace WebApiClient
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="NotSupportedException"></exception>
         /// <returns></returns>
-        public static object CreateInstance(Type interfaceType, IApiInterceptor interceptor)
+        public static HttpApiClient CreateInstance(Type interfaceType, IApiInterceptor interceptor)
         {
             // 接口的实现在动态程序集里，所以接口必须为public修饰才可以创建代理类并实现此接口            
             if (interfaceType.GetTypeInfo().IsVisible == false)
@@ -56,70 +49,54 @@ namespace WebApiClient
                 throw new NotSupportedException(message);
             }
 
-            var apiMethods = interfaceType.GetAllApiMethods();
-            var proxyTypeCtor = proxyTypeCtorCache.GetOrAdd(
-                interfaceType,
-                @interface => @interface.ImplementAsHttpApiClient(apiMethods));
+            var proxy = interfaceProxyCache.GetOrAdd(interfaceType, (Func<Type, HttpApiClientProxy>)(@interface =>
+            {
+                var apiMethods = @interface.GetAllApiMethods();
+                var proxyType = BuildProxyType(@interface, apiMethods);
+                return new HttpApiClientProxy(proxyType, apiMethods);
+            }));
 
-            return proxyTypeCtor.Invoke(new object[] { interceptor, apiMethods });
+            return proxy.CreateInstance(interceptor);
         }
 
         /// <summary>
-        /// 继承HttpApiClient并实现接口
-        /// 并返回代理类的构造器
-        /// 对于相同的interfaceType，不允许并发执行
+        /// 返回创建的接口的代理代理类型
         /// </summary>
         /// <param name="interfaceType">接口类型</param>
         /// <param name="apiMethods">接口方法集合</param>
         /// <returns></returns>
-        private static ConstructorInfo ImplementAsHttpApiClient(this Type interfaceType, MethodInfo[] apiMethods)
+        private static Type BuildProxyType(Type interfaceType, MethodInfo[] apiMethods)
         {
             var moduleName = interfaceType.GetTypeInfo().Module.Name;
-            var hashCode = interfaceType.GetTypeInfo().Assembly.GetHashCode() ^ interfaceType.GetTypeInfo().Module.GetHashCode();
+            var assemblyName = new AssemblyName(Guid16.NewGuid16().ToString());
 
-            // 每个动态集下面只会有一个模块
-            var moduleBuilder = hashCodeModuleBuilderCache.GetOrAdd(hashCode, (hash) =>
-            {
-                return AssemblyBuilder
-                .DefineDynamicAssembly(new AssemblyName(hash.ToString()), AssemblyBuilderAccess.Run)
+            var module = AssemblyBuilder
+                .DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run)
                 .DefineDynamicModule(moduleName);
-            });
 
-            var builder = moduleBuilder.DefineType(interfaceType.FullName, TypeAttributes.Class, typeof(HttpApiClient));
+            var builder = module.DefineType(interfaceType.FullName, TypeAttributes.Class, typeof(HttpApiClient));
             builder.AddInterfaceImplementation(interfaceType);
-            return builder.BuildProxyType(apiMethods);
-        }
 
-        /// <summary>
-        /// 生成代理类型并实现相关方法
-        /// 并返回其构造器
-        /// </summary>
-        /// <param name="builder"></param>
-        /// <param name="apiMethods">接口方法集合</param>
-        /// <returns></returns>
-        private static ConstructorInfo BuildProxyType(this TypeBuilder builder, MethodInfo[] apiMethods)
-        {
-            var fieldInterceptor = builder.BuildField("interceptor", typeof(IApiInterceptor));
-            var fieldApiMethods = builder.BuildField("apiMethods", typeof(MethodInfo[]));
+            var fieldInterceptor = BuildField(builder, "interceptor", typeof(IApiInterceptor));
+            var fieldApiMethods = BuildField(builder, "apiMethods", typeof(MethodInfo[]));
 
-            builder.BuildCtor(fieldInterceptor, fieldApiMethods);
-            builder.BuildMethods(apiMethods, fieldInterceptor, fieldApiMethods);
+            BuildCtor(builder, fieldInterceptor, fieldApiMethods);
+            BuildMethods(builder, apiMethods, fieldInterceptor, fieldApiMethods);
 
-            var proxyType = builder.CreateTypeInfo();
-            return proxyType.GetConstructor(proxyTypeCtorArgTypes);
+            return builder.CreateTypeInfo().AsType();
         }
 
         /// <summary>
         /// 生成代理类型的字段
         /// </summary>
-        /// <param name="typeBuilder">类型生成器</param>
+        /// <param name="builder">类型生成器</param>
         /// <param name="fieldName">字段名称</param>
-        /// <param name="type">字段类型</param>
+        /// <param name="fieldType">字段类型</param>
         /// <returns></returns>
-        private static FieldBuilder BuildField(this TypeBuilder typeBuilder, string fieldName, Type type)
+        private static FieldBuilder BuildField(TypeBuilder builder, string fieldName, Type fieldType)
         {
             const FieldAttributes filedAttribute = FieldAttributes.Private | FieldAttributes.InitOnly;
-            return typeBuilder.DefineField(fieldName, type, filedAttribute);
+            return builder.DefineField(fieldName, fieldType, filedAttribute);
         }
 
         /// <summary>
@@ -129,7 +106,7 @@ namespace WebApiClient
         /// <param name="fieldInterceptor">拦截器字段</param>
         /// <param name="fieldApiMethods">接口方法集合字段</param>
         /// <returns></returns>
-        private static void BuildCtor(this TypeBuilder builder, FieldBuilder fieldInterceptor, FieldBuilder fieldApiMethods)
+        private static void BuildCtor(TypeBuilder builder, FieldBuilder fieldInterceptor, FieldBuilder fieldApiMethods)
         {
             // .ctor(IApiInterceptor interceptor, MethodInfo[] methods):base(interceptor)          
             var ctor = builder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, proxyTypeCtorArgTypes);
@@ -159,7 +136,7 @@ namespace WebApiClient
         /// <param name="apiMethods">接口方法集合</param>
         /// <param name="fieldInterceptor">拦截器字段</param>
         /// <param name="fieldApiMethods">接口方法集合字段</param>
-        private static void BuildMethods(this TypeBuilder builder, MethodInfo[] apiMethods, FieldBuilder fieldInterceptor, FieldBuilder fieldApiMethods)
+        private static void BuildMethods(TypeBuilder builder, MethodInfo[] apiMethods, FieldBuilder fieldInterceptor, FieldBuilder fieldApiMethods)
         {
             const MethodAttributes implementAttribute = MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.Final | MethodAttributes.NewSlot | MethodAttributes.HideBySig;
 
