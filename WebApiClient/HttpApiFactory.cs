@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Net;
 using System.Net.Http;
-using System.Threading;
 
 namespace WebApiClient
 {
@@ -33,20 +32,37 @@ namespace WebApiClient
         /// </summary>
         private Lazy<LifetimeInterceptor> lifeTimeInterceptorLazy;
 
+
+        /// <summary>
+        /// cookie容器
+        /// </summary>
+        private CookieContainer cookieContainer;
+
+        /// <summary>
+        /// 是否保持cookie容器
+        /// </summary>
+        private bool keepCookieContainer = HttpHandlerProvider.IsSupported;
+
         /// <summary>
         /// 拦截器清理器
         /// </summary>
         private readonly InterceptorCleaner interceptorCleaner = new InterceptorCleaner();
 
         /// <summary>
-        /// 是否保持cookie容器
+        /// 获取handler的生命周期
         /// </summary>
-        private bool keepCookieContainer = true;
+        public TimeSpan LifeTime
+        {
+            get => this.lifeTime;
+        }
 
         /// <summary>
-        /// cookie容器
+        /// 获取是否保持cookie容器
         /// </summary>
-        private CookieContainer cookieContainer;
+        public bool KeepCookieContainer
+        {
+            get => this.keepCookieContainer;
+        }
 
         /// <summary>
         /// HttpApi创建工厂
@@ -55,7 +71,7 @@ namespace WebApiClient
         {
             this.lifeTimeInterceptorLazy = new Lazy<LifetimeInterceptor>(
                 this.CreateInterceptor,
-                LazyThreadSafetyMode.ExecutionAndPublication);
+                true);
         }
 
         /// <summary>
@@ -93,9 +109,16 @@ namespace WebApiClient
         /// 该实例为首次创建时的CookieContainer
         /// </summary>
         /// <param name="keep">true维护使用一个CookieContainer实例</param>
+        /// <exception cref="PlatformNotSupportedException"></exception>
         /// <returns></returns>
         public HttpApiFactory<TInterface> SetKeepCookieContainer(bool keep)
         {
+            if (keep == true && HttpHandlerProvider.IsSupported == false)
+            {
+                var message = $"无法设置KeepCookieContainer，请在{nameof(ConfigureHttpMessageHandler)}为Handler设置固定的{nameof(CookieContainer)}";
+                throw new PlatformNotSupportedException(message);
+            }
+
             this.keepCookieContainer = keep;
             return this;
         }
@@ -135,7 +158,7 @@ namespace WebApiClient
         /// 创建接口的代理实例
         /// </summary>
         /// <returns></returns>
-        object IHttpApiFactory.CreateHttpApi()
+        HttpApiClient IHttpApiFactory.CreateHttpApi()
         {
             var interceptor = this.lifeTimeInterceptorLazy.Value;
             return HttpApiClient.Create(typeof(TInterface), interceptor);
@@ -157,9 +180,14 @@ namespace WebApiClient
 
             if (this.keepCookieContainer == true)
             {
-                var handlerContainer = httpApiConfig.HttpHandler.CookieContainer;
-                Interlocked.CompareExchange(ref this.cookieContainer, handlerContainer, null);
-                httpApiConfig.HttpHandler.CookieContainer = this.cookieContainer;
+                if (this.cookieContainer == null)
+                {
+                    this.cookieContainer = httpApiConfig.HttpHandler.CookieContainer;
+                }
+                if (httpApiConfig.HttpHandler.CookieContainer != this.cookieContainer)
+                {
+                    httpApiConfig.HttpHandler.CookieContainer = this.cookieContainer;
+                }
             }
 
             return new LifetimeInterceptor(
@@ -177,7 +205,7 @@ namespace WebApiClient
             // 切换激活状态的记录的实例
             this.lifeTimeInterceptorLazy = new Lazy<LifetimeInterceptor>(
                 this.CreateInterceptor,
-                LazyThreadSafetyMode.ExecutionAndPublication);
+                true);
 
             this.interceptorCleaner.Add(interceptor);
         }
