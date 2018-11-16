@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using WebApiClient.Contexts;
@@ -46,6 +47,11 @@ namespace WebApiClient.Attributes
         public string DateTimeFormat { get; set; }
 
         /// <summary>
+        /// 获取或设置集合格式化方式
+        /// </summary>
+        public CollectionFormat CollectionFormat = CollectionFormat.Multi;
+
+        /// <summary>
         /// 表示Url路径参数或query参数的特性
         /// </summary>
         public PathQueryAttribute()
@@ -82,8 +88,16 @@ namespace WebApiClient.Attributes
                 return;
             }
 
-            var options = context.HttpApiConfig.FormatOptions.CloneChange(this.DateTimeFormat);
-            var keyValues = context.HttpApiConfig.KeyValueFormatter.Serialize(parameter, options);
+            var options = context
+                .HttpApiConfig
+                .FormatOptions
+                .CloneChange(this.DateTimeFormat);
+
+            var keyValues = context
+                .HttpApiConfig
+                .KeyValueFormatter
+                .Serialize(parameter, options)
+                .FormateAs(this.CollectionFormat);
 
             context.RequestMessage.RequestUri = this.UsePathQuery(uri, keyValues);
             await ApiTask.CompletedTask;
