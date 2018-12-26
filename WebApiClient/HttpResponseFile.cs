@@ -14,6 +14,11 @@ namespace WebApiClient
     public class HttpResponseFile : HttpResponseWrapper
     {
         /// <summary>
+        /// 下载进度变化事件
+        /// </summary>
+        public event EventHandler<ProgressEventArgs> DownloadProgressChanged;
+
+        /// <summary>
         /// 获取响应的友好文件名称
         /// </summary>
         public string FileName { get; private set; }
@@ -85,12 +90,29 @@ namespace WebApiClient
                 throw new ArgumentException(nameof(stream) + " cannot be write", nameof(stream));
             }
 
-            var length = 0;
+            var current = 0L;
             var buffer = new byte[8 * 1024];
             var sourceStream = await this.HttpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
 
-            while ((length = await sourceStream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) > 0)
+            while (true)
             {
+                var length = await sourceStream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                var isCompleted = length == 0;
+
+                current = current + length;
+                var total = this.FileSize;
+                if (isCompleted == true && total == null)
+                {
+                    total = current;
+                }
+
+                var args = new ProgressEventArgs(current, total, isCompleted);
+                this.DownloadProgressChanged?.Invoke(this, args);
+
+                if (isCompleted == true)
+                {
+                    break;
+                }
                 await stream.WriteAsync(buffer, 0, length).ConfigureAwait(false);
             }
         }
