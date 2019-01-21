@@ -74,8 +74,11 @@ namespace Demo
                 .UpdateWithXmlAsync(user).HandleAsDefaultWhenException();
 
             var file = new MulitpartFile("file.data");
+            file.UploadProgressChanged += (s, e) => Console.WriteLine(e);
+
             var user6 = await userApi
                 .UpdateWithMulitpartAsync(user, "老九", 18, file);
+
         }
     }
 }
