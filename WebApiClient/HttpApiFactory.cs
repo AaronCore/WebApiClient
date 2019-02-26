@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 
 namespace WebApiClient
 {
@@ -12,25 +13,17 @@ namespace WebApiClient
     public class HttpApiFactory<TInterface> : IHttpApiFactory<TInterface>, IHttpApiFactory
         where TInterface : class, IHttpApi
     {
-        /// <summary>
-        /// HttpApiConfig的配置委托
-        /// </summary>
-        private Action<HttpApiConfig> configAction;
 
         /// <summary>
-        /// HttpMessageHandler的创建委托
+        /// 具有生命周期的httpHandler延时创建对象
         /// </summary>
-        private Func<HttpMessageHandler> handlerFunc;
+        private Lazy<LifetimeHttpHandler> lifeTimeHttpHandlerLazy;
 
         /// <summary>
-        /// handler的生命周期
+        /// HttpHandler清理器
         /// </summary>
-        private TimeSpan lifeTime = TimeSpan.FromMinutes(2d);
+        private readonly LifetimeHttpHandlerCleaner httpHandlerCleaner = new LifetimeHttpHandlerCleaner();
 
-        /// <summary>
-        /// 具有生命周期的拦截器延时创建对象
-        /// </summary>
-        private Lazy<LifetimeInterceptor> lifeTimeInterceptorLazy;
 
 
         /// <summary>
@@ -44,35 +37,50 @@ namespace WebApiClient
         private bool keepCookieContainer = HttpHandlerProvider.IsSupported;
 
         /// <summary>
-        /// 拦截器清理器
+        /// 生命周期
         /// </summary>
-        private readonly InterceptorCleaner interceptorCleaner = new InterceptorCleaner();
+        private TimeSpan lifeTime = TimeSpan.FromMinutes(2d);
 
         /// <summary>
-        /// 获取handler的生命周期
+        /// HttpApiConfig的配置委托
         /// </summary>
-        public TimeSpan LifeTime
-        {
-            get => this.lifeTime;
-        }
+        private Action<HttpApiConfig> configOptions { get; set; }
 
         /// <summary>
-        /// 获取是否保持cookie容器
+        /// HttpMessageHandler的创建委托
         /// </summary>
-        public bool KeepCookieContainer
-        {
-            get => this.keepCookieContainer;
-        }
+        private Func<HttpMessageHandler> handlerFactory { get; set; }
+
 
         /// <summary>
         /// HttpApi创建工厂
         /// </summary>
         public HttpApiFactory()
         {
-            this.lifeTimeInterceptorLazy = new Lazy<LifetimeInterceptor>(
-                this.CreateInterceptor,
-                true);
+            this.lifeTimeHttpHandlerLazy = new Lazy<LifetimeHttpHandler>(this.CreateHttpHandler, true);
         }
+
+        /// <summary>
+        /// 创建LifetimeHttpHandler
+        /// </summary>
+        /// <returns></returns>
+        private LifetimeHttpHandler CreateHttpHandler()
+        {
+            var handler = this.handlerFactory?.Invoke() ?? new DefaultHttpClientHandler();
+            return new LifetimeHttpHandler(handler, this.lifeTime, this.OnHttpHandlerDeactivate);
+        }
+
+        /// <summary>
+        /// 当有httpHandler失效时
+        /// </summary>
+        /// <param name="handler">httpHandler</param>
+        private void OnHttpHandlerDeactivate(LifetimeHttpHandler handler)
+        {
+            // 切换激活状态的记录的实例
+            this.lifeTimeHttpHandlerLazy = new Lazy<LifetimeHttpHandler>(this.CreateHttpHandler, true);
+            this.httpHandlerCleaner.Add(handler);
+        }
+
 
         /// <summary>
         /// 置HttpApi实例的生命周期
@@ -100,7 +108,7 @@ namespace WebApiClient
             {
                 throw new ArgumentOutOfRangeException();
             }
-            this.interceptorCleaner.CleanupInterval = interval;
+            this.httpHandlerCleaner.CleanupInterval = interval;
             return this;
         }
 
@@ -126,22 +134,32 @@ namespace WebApiClient
         /// <summary>
         /// 配置HttpMessageHandler的创建
         /// </summary>
-        /// <param name="handlerFunc">创建委托</param>
+        /// <param name="factory">创建委托</param>
         /// <returns></returns>
-        public HttpApiFactory<TInterface> ConfigureHttpMessageHandler(Func<HttpMessageHandler> handlerFunc)
+        public HttpApiFactory<TInterface> ConfigureHttpMessageHandler(Func<HttpMessageHandler> factory)
         {
-            this.handlerFunc = handlerFunc;
+            this.handlerFactory = factory;
             return this;
+        }
+
+
+        /// <summary>
+        /// 配置HttpApiConfig
+        /// </summary>
+        /// <param name="options">配置委托</param>
+        void IHttpApiFactory<TInterface>.ConfigureHttpApiConfig(Action<HttpApiConfig> options)
+        {
+            this.ConfigureHttpApiConfig(options);
         }
 
         /// <summary>
         /// 配置HttpApiConfig
         /// </summary>
-        /// <param name="configAction">配置委托</param>
+        /// <param name="options">配置委托</param>
         /// <returns></returns>
-        public HttpApiFactory<TInterface> ConfigureHttpApiConfig(Action<HttpApiConfig> configAction)
+        public HttpApiFactory<TInterface> ConfigureHttpApiConfig(Action<HttpApiConfig> options)
         {
-            this.configAction = configAction;
+            this.configOptions = options;
             return this;
         }
 
@@ -149,7 +167,7 @@ namespace WebApiClient
         /// 创建接口的代理实例
         /// </summary>
         /// <returns></returns>
-        public TInterface CreateHttpApi()
+        TInterface IHttpApiFactory<TInterface>.CreateHttpApi()
         {
             return ((IHttpApiFactory)this).CreateHttpApi() as TInterface;
         }
@@ -160,54 +178,24 @@ namespace WebApiClient
         /// <returns></returns>
         HttpApiClient IHttpApiFactory.CreateHttpApi()
         {
-            var interceptor = this.lifeTimeInterceptorLazy.Value;
-            return HttpApiClient.Create(typeof(TInterface), interceptor);
-        }
+            var handler = this.lifeTimeHttpHandlerLazy.Value;
+            var httpApiConfig = new LifetimeHttpApiConfig(handler);
 
-        /// <summary>
-        /// 创建LifetimeInterceptor
-        /// </summary>
-        /// <returns></returns>
-        private LifetimeInterceptor CreateInterceptor()
-        {
-            var handler = this.handlerFunc?.Invoke() ?? new DefaultHttpClientHandler();
-            var httpApiConfig = new HttpApiConfig(handler, true);
-
-            if (this.configAction != null)
+            if (this.configOptions != null)
             {
-                this.configAction.Invoke(httpApiConfig);
+                this.configOptions.Invoke(httpApiConfig);
             }
 
             if (this.keepCookieContainer == true)
             {
-                if (this.cookieContainer == null)
-                {
-                    this.cookieContainer = httpApiConfig.HttpHandler.CookieContainer;
-                }
+                Interlocked.CompareExchange(ref this.cookieContainer, httpApiConfig.HttpHandler.CookieContainer, null);
                 if (httpApiConfig.HttpHandler.CookieContainer != this.cookieContainer)
                 {
                     httpApiConfig.HttpHandler.CookieContainer = this.cookieContainer;
                 }
             }
 
-            return new LifetimeInterceptor(
-                httpApiConfig,
-                this.lifeTime,
-                this.OnInterceptorDeactivate);
-        }
-
-        /// <summary>
-        /// 当有拦截器失效时
-        /// </summary>
-        /// <param name="interceptor">拦截器</param>
-        private void OnInterceptorDeactivate(LifetimeInterceptor interceptor)
-        {
-            // 切换激活状态的记录的实例
-            this.lifeTimeInterceptorLazy = new Lazy<LifetimeInterceptor>(
-                this.CreateInterceptor,
-                true);
-
-            this.interceptorCleaner.Add(interceptor);
+            return HttpApiClient.Create(typeof(TInterface), httpApiConfig);
         }
     }
 }

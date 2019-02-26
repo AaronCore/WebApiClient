@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -16,9 +15,9 @@ namespace WebApiClient
     class UrlEncodedContent : HttpContent
     {
         /// <summary>
-        /// 获取对应的ContentType
+        /// 用于保存表单内容
         /// </summary>
-        public static string MediaType => "application/x-www-form-urlencoded";
+        private readonly MemoryStream stream = new MemoryStream();
 
         /// <summary>
         /// 默认的http编码
@@ -26,54 +25,67 @@ namespace WebApiClient
         private static readonly Encoding defaultHttpEncoding = Encoding.GetEncoding(28591);
 
         /// <summary>
-        /// 用于保存表单内容
+        /// 获取对应的ContentType
         /// </summary>
-        private readonly MemoryStream stream = new MemoryStream();
+        public static string MediaType => "application/x-www-form-urlencoded";
+
 
         /// <summary>
         /// 键值对表单内容
         /// </summary>
-        /// <param name="content">原始表单</param>
-        /// <param name="disposeContent">是否要释放原始表单</param>
-        public UrlEncodedContent(HttpContent content, bool disposeContent = true)
+        public UrlEncodedContent()
         {
-            if (content != null)
-            {
-                content.CopyToAsync(this.stream);
-                if (disposeContent == true)
-                {
-                    content.Dispose();
-                }
-            }
             this.Headers.ContentType = new MediaTypeHeaderValue(MediaType);
+        }
+
+        /// <summary>
+        /// 添加http内容
+        /// </summary>
+        /// <param name="content">http内容</param>
+        /// <param name="disposeContent">是否要释放原始内容</param>
+        /// <returns></returns>
+        public async Task AddHttpContentAsync(HttpContent content, bool disposeContent = true)
+        {
+            if (content == null)
+            {
+                return;
+            }
+
+            var buffer = await content.ReadAsByteArrayAsync().ConfigureAwait(false);
+            await this.AddByteArrayAsync(buffer).ConfigureAwait(false);
+
+            if (disposeContent == true)
+            {
+                content.Dispose();
+            }
         }
 
 
         /// <summary>
-        /// 添加字段到内存流
+        /// 添加键值对
         /// </summary>
         /// <param name="keyValues">键值对</param>
         /// <returns></returns>
         public async Task AddFormFieldAsync(IEnumerable<KeyValuePair<string, string>> keyValues)
         {
-            if (keyValues == null || keyValues.Any() == false)
+            if (keyValues == null)
             {
                 return;
             }
 
-            var builder = new StringBuilder();
+            var form = new StringBuilder();
             foreach (var pair in keyValues)
             {
-                if (builder.Length > 0)
+                if (form.Length > 0)
                 {
-                    builder.Append('&');
+                    form.Append('&');
                 }
-                builder.Append(Encode(pair.Key));
-                builder.Append('=');
-                builder.Append(Encode(pair.Value));
+                form.Append(Encode(pair.Key));
+                form.Append('=');
+                form.Append(Encode(pair.Value));
             }
 
-            await this.AddRawFormAsync(builder.ToString()).ConfigureAwait(false);
+            await this.AddRawFormAsync(form.ToString()).ConfigureAwait(false);
         }
 
 
@@ -89,13 +101,28 @@ namespace WebApiClient
                 return;
             }
 
+            var buffer = defaultHttpEncoding.GetBytes(form);
+            await this.AddByteArrayAsync(buffer).ConfigureAwait(false);
+        }
+
+
+        /// <summary>
+        /// 添加二进制数据内容
+        /// </summary>
+        /// <param name="buffer">数据内容</param>
+        /// <returns></returns>
+        private async Task AddByteArrayAsync(byte[] buffer)
+        {
+            if (buffer == null || buffer.Length == 0)
+            {
+                return;
+            }
+
             if (this.stream.Length > 0)
             {
                 this.stream.WriteByte((byte)'&');
             }
-
-            var bytes = defaultHttpEncoding.GetBytes(form);
-            await this.stream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
+            await this.stream.WriteAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
         }
 
 
@@ -106,9 +133,9 @@ namespace WebApiClient
         /// <returns></returns>
         private static string Encode(string value)
         {
-            if (String.IsNullOrEmpty(value))
+            if (string.IsNullOrEmpty(value))
             {
-                return String.Empty;
+                return string.Empty;
             }
             return Uri.EscapeDataString(value).Replace("%20", "+");
         }
