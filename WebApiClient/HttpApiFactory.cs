@@ -44,12 +44,12 @@ namespace WebApiClient
         /// <summary>
         /// HttpApiConfig的配置委托
         /// </summary>
-        private Action<HttpApiConfig> configOptions { get; set; }
+        private Action<HttpApiConfig> configOptions;
 
         /// <summary>
         /// HttpMessageHandler的创建委托
         /// </summary>
-        private Func<HttpMessageHandler> handlerFactory { get; set; }
+        private Func<HttpMessageHandler> handlerFactory;
 
 
         /// <summary>
@@ -169,7 +169,7 @@ namespace WebApiClient
         /// <returns></returns>
         TInterface IHttpApiFactory<TInterface>.CreateHttpApi()
         {
-            return ((IHttpApiFactory)this).CreateHttpApi() as TInterface;
+            return this.CreateHttpApi();
         }
 
         /// <summary>
@@ -177,6 +177,15 @@ namespace WebApiClient
         /// </summary>
         /// <returns></returns>
         HttpApiClient IHttpApiFactory.CreateHttpApi()
+        {
+            return this.CreateHttpApi() as HttpApiClient;
+        }
+
+        /// <summary>
+        /// 创建HttpApi代理实例
+        /// </summary>
+        /// <returns></returns>
+        private TInterface CreateHttpApi()
         {
             var handler = this.lifeTimeHttpHandlerLazy.Value;
             var httpApiConfig = new LifetimeHttpApiConfig(handler);
@@ -189,13 +198,23 @@ namespace WebApiClient
             if (this.keepCookieContainer == true)
             {
                 Interlocked.CompareExchange(ref this.cookieContainer, httpApiConfig.HttpHandler.CookieContainer, null);
-                if (httpApiConfig.HttpHandler.CookieContainer != this.cookieContainer)
+                if (object.ReferenceEquals(httpApiConfig.HttpHandler.CookieContainer, this.cookieContainer) == false)
                 {
                     httpApiConfig.HttpHandler.CookieContainer = this.cookieContainer;
                 }
             }
 
-            return HttpApiClient.Create(typeof(TInterface), httpApiConfig);
+            return this.CreateHttpApi(httpApiConfig);
+        }
+
+        /// <summary>
+        /// 创建HttpApi代理实例
+        /// </summary>
+        /// <param name="httpApiConfig">httpApi配置</param>
+        /// <returns></returns>
+        protected virtual TInterface CreateHttpApi(HttpApiConfig httpApiConfig)
+        {
+            return HttpApiClient.Create<TInterface>(httpApiConfig);
         }
     }
 }
