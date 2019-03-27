@@ -2,6 +2,8 @@
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
 using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Reflection;
 using WebApiClient.DataAnnotations;
 
@@ -11,50 +13,26 @@ namespace WebApiClient.Defaults
     /// 表示属性解析约定
     /// 用于实现DataAnnotations的功能
     /// </summary>
-    class AnnotationsContractResolver : DefaultContractResolver
+    [DebuggerDisplay("FormatScope = {FormatScope}")]
+    public class AnnotationsContractResolver : DefaultContractResolver
     {
         /// <summary>
-        /// json范围使用CamelCase的KeyValue属性解析约定
+        /// ContractResolver缓存
         /// </summary>
-        private readonly static AnnotationsContractResolver jsonCamelCaseResolver = new AnnotationsContractResolver(true, FormatScope.JsonFormat);
-
-        /// <summary>
-        /// json范围不使用CamelCase的KeyValue属性解析约定
-        /// </summary>
-        private readonly static AnnotationsContractResolver jsonNoCamelCaseResolver = new AnnotationsContractResolver(false, FormatScope.JsonFormat);
-
-        /// <summary>
-        /// keyValue范围使用CamelCase的json属性解析约定
-        /// </summary>
-        private readonly static AnnotationsContractResolver keyValueCamelCaseResolver = new AnnotationsContractResolver(true, FormatScope.KeyValueFormat);
-
-        /// <summary>
-        /// keyValue范围不使用CamelCase的json属性解析约定
-        /// </summary>
-        private readonly static AnnotationsContractResolver keyValueNoCamelCaseResolver = new AnnotationsContractResolver(false, FormatScope.KeyValueFormat);
-
+        private static readonly ConcurrentDictionary<ContractKey, AnnotationsContractResolver> cache = new ConcurrentDictionary<ContractKey, AnnotationsContractResolver>();
 
         /// <summary>
         /// 返回属性解析约定
         /// </summary>
         /// <param name="scope">序列化范围</param>
         /// <param name="camelCase">是否使用CamelCase</param>
+        /// <exception cref="NotImplementedException"></exception>
         /// <returns></returns>
         public static AnnotationsContractResolver GetResolver(FormatScope scope, bool camelCase)
         {
-            switch (scope)
-            {
-                case FormatScope.JsonFormat:
-                    return camelCase ? jsonCamelCaseResolver : jsonNoCamelCaseResolver;
-
-                case FormatScope.KeyValueFormat:
-                    return camelCase ? keyValueCamelCaseResolver : keyValueNoCamelCaseResolver;
-
-                default:
-                    throw new NotImplementedException();
-            }
+            var key = new ContractKey(camelCase, scope);
+            return cache.GetOrAdd(key, k => new AnnotationsContractResolver(k));
         }
-
 
         /// <summary>
         /// 是否camel命名
@@ -62,19 +40,29 @@ namespace WebApiClient.Defaults
         private readonly bool useCamelCase;
 
         /// <summary>
-        /// 序列化范围
+        /// 获取序列化范围
         /// </summary>
-        private readonly FormatScope formatScope;
+        public FormatScope FormatScope { get; private set; }
+
+
+        /// <summary>
+        /// 属性解析器
+        /// </summary>
+        /// <param name="contractKey">contractKey</param>
+        private AnnotationsContractResolver(ContractKey contractKey)
+            : this(contractKey.CamelCase, contractKey.FormatScope)
+        {
+        }
 
         /// <summary>
         /// 属性解析器
         /// </summary>
         /// <param name="camelCase">是否camel命名</param>
         /// <param name="scope">序列化范围</param>
-        private AnnotationsContractResolver(bool camelCase, FormatScope scope)
+        public AnnotationsContractResolver(bool camelCase, FormatScope scope)
         {
             this.useCamelCase = camelCase;
-            this.formatScope = scope;
+            this.FormatScope = scope;
         }
 
         /// <summary>
@@ -97,7 +85,7 @@ namespace WebApiClient.Defaults
         protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
         {
             var property = base.CreateProperty(member, memberSerialization);
-            var annotations = Annotations.GetAnnotations(member, this.formatScope);
+            var annotations = Annotations.GetAnnotations(member, this.FormatScope);
 
             if (string.IsNullOrEmpty(annotations.AliasName) == false)
             {
@@ -120,6 +108,42 @@ namespace WebApiClient.Defaults
 
             property.Ignored = annotations.IgnoreSerialized;
             return property;
+        }
+
+        /// <summary>
+        /// 表示ContractResolver缓存的键
+        /// </summary>
+        private struct ContractKey : IEquatable<ContractKey>
+        {
+            public bool CamelCase { get; private set; }
+
+            public FormatScope FormatScope { get; private set; }
+
+            /// <summary>
+            /// ContractResolver缓存的键
+            /// </summary>
+            /// <param name="camelCase"></param>
+            /// <param name="formatScope"></param>
+            public ContractKey(bool camelCase, FormatScope formatScope)
+            {
+                this.CamelCase = camelCase;
+                this.FormatScope = formatScope;
+            }
+
+            /// <summary>
+            /// ContractKey的哈希一样时，才调用此方法
+            /// </summary>
+            /// <param name="other"></param>
+            /// <returns></returns>
+            public bool Equals(ContractKey other)
+            {
+                return true;
+            }
+
+            public override int GetHashCode()
+            {
+                return this.CamelCase.GetHashCode() ^ this.FormatScope.GetHashCode();
+            }
         }
     }
 }
