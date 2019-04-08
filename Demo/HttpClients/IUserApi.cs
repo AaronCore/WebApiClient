@@ -11,14 +11,13 @@ namespace Demo.HttpClients
     /// <summary>
     /// 用户操作接口
     /// </summary>
-    [TraceFilter]
-    [DebugFilter]
+    [TraceFilter]   
     [HttpHost("http://localhost:9999/")] // HttpHost可以在Config传入覆盖
     public interface IUserApi : IHttpApi
     {
         // GET {url}?account={account}&password={password}&something={something}
         [HttpGet]
-        [Timeout(10 * 1000)] // 10s超时
+        [Cache(10 * 1000)]
         Task<string> GetAboutAsync(
             [Uri] string url,
             UserInfo user,
@@ -28,6 +27,7 @@ namespace Demo.HttpClients
         // Return HttpResponseMessage
         [HttpGet("webapi/user/GetById/{id}")]
         [BasicAuth("userName", "password")]
+        [Timeout(10 * 1000)] // 10s超时
         ITask<HttpResponseMessage> GetByIdAsync(
             [Required]string id,
             CancellationToken token);

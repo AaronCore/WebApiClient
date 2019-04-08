@@ -23,6 +23,16 @@ namespace WebApiClient.Contexts
         public MethodInfo Member { get; protected set; }
 
         /// <summary>
+        /// 获取Api调用参数值
+        /// </summary>
+        public object[] Arguments { get; protected set; }
+
+        /// <summary>
+        /// 获取Api关联的缓存特性
+        /// </summary>
+        public IApiActionCacheAttribute Cache { get; protected set; }
+
+        /// <summary>
         /// 获取Api关联的特性
         /// </summary>
         public IReadOnlyList<IApiActionAttribute> Attributes { get; protected set; }
@@ -76,6 +86,7 @@ namespace WebApiClient.Contexts
 
             this.Member = method;
             this.Name = method.Name;
+            this.Cache = method.GetAttribute<IApiActionCacheAttribute>(true);
             this.Filters = filterAttributes;
             this.Attributes = actionAttributes;
             this.Return = new ApiReturnDescriptor(method);
@@ -92,10 +103,12 @@ namespace WebApiClient.Contexts
             return new ApiActionDescriptor
             {
                 Name = this.Name,
+                Cache = this.Cache,
                 Member = this.Member,
                 Return = this.Return,
                 Filters = this.Filters,
-                Attributes = this.Attributes,
+                Arguments = parameterValues,
+                Attributes = this.Attributes,              
                 Parameters = this.Parameters.Select((p, i) => p.Clone(parameterValues[i])).ToReadOnlyList()
             };
         }

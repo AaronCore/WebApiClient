@@ -184,13 +184,39 @@ namespace WebApiClient.Contexts
         {
             using (var cancellation = this.CreateLinkedTokenSource())
             {
-                var completionOption = this.ApiActionDescriptor.Return.DataType.IsHttpResponseWrapper ?
-                    HttpCompletionOption.ResponseHeadersRead :
-                    HttpCompletionOption.ResponseContentRead;
+                var cacheAttribute = this.ApiActionDescriptor.Cache;
+                var cacheProvider = this.HttpApiConfig.ResponseCacheProvider;
 
-                this.ResponseMessage = await this.HttpApiConfig.HttpClient
-                    .SendAsync(this.RequestMessage, completionOption, cancellation.Token)
-                    .ConfigureAwait(false);
+                var cacheKey = default(string);
+                var cacheResult = ResponseCacheResult.NoValue;
+                var cacheEnable = cacheAttribute != null && cacheProvider != null;
+
+                if (cacheEnable == true)
+                {
+                    cacheKey = await cacheAttribute.GetCacheKeyAsync(this).ConfigureAwait(false);
+                    cacheResult = await cacheProvider.GetAsync(cacheKey).ConfigureAwait(false);
+                }
+
+                if (cacheResult.HasValue == true)
+                {
+                    this.ResponseMessage = cacheResult.Value.ToResponseMessage(this.RequestMessage, cacheProvider.Name);
+                }
+                else
+                {
+                    var completionOption = this.ApiActionDescriptor.Return.DataType.IsHttpResponseWrapper ?
+                        HttpCompletionOption.ResponseHeadersRead :
+                        HttpCompletionOption.ResponseContentRead;
+
+                    this.ResponseMessage = await this.HttpApiConfig.HttpClient
+                        .SendAsync(this.RequestMessage, completionOption, cancellation.Token)
+                        .ConfigureAwait(false);
+
+                    if (cacheEnable == true)
+                    {
+                        var cacheEntry = await ResponseCacheEntry.FromResponseMessageAsync(this.ResponseMessage).ConfigureAwait(false);
+                        await cacheProvider.SetAsync(cacheKey, cacheEntry, cacheAttribute.Expiration).ConfigureAwait(false);
+                    }
+                }
 
                 var result = await this.ApiActionDescriptor.Return.Attribute
                     .GetTaskResult(this)
@@ -239,7 +265,7 @@ namespace WebApiClient.Contexts
         /// <summary>
         /// 释放资源
         /// </summary>
-        public void Dispose()
+        public virtual void Dispose()
         {
             this.RequestMessage.Content?.Dispose();
         }

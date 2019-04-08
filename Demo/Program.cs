@@ -13,8 +13,8 @@ namespace Demo
     {
         static void Main(string[] args)
         {
-            Program.Init();
-            Program.RequestAsync().Wait();
+            Init();
+            RequestAsync().Wait();
             Console.ReadLine();
         }
 
@@ -26,8 +26,8 @@ namespace Demo
             HttpServer.Start(9999);
             var logging = new LoggerFactory().AddConsole();
 
-            // 注册与配置IUserApi接口
-            HttpApiFactory.Add<IUserApi>().ConfigureHttpApiConfig(c =>
+            //  注册IUserApi 配置其工厂
+            HttpApi.Register<IUserApi>().ConfigureHttpApiConfig(c =>
             {
                 c.LoggerFactory = logging;
                 c.HttpHost = new Uri("http://localhost:9999/");
@@ -41,9 +41,7 @@ namespace Demo
         /// <returns></returns>
         private static async Task RequestAsync()
         {
-            // userApi由HttpApiFactory创建，自动接管其生命周期
-            // 不应该将其做为全局变量缓存起来
-            var userApi = HttpApiFactory.Create<IUserApi>();
+            var userApi = HttpApi.Resolve<IUserApi>();
 
             var user = new UserInfo
             {
@@ -55,6 +53,9 @@ namespace Demo
             };
 
             var about = await userApi
+                .GetAboutAsync("webapi/user/about", user, "somevalue");
+
+            var aboutCache = await userApi
                 .GetAboutAsync("webapi/user/about", user, "somevalue");
 
             var user1 = await userApi

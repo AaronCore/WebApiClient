@@ -23,6 +23,11 @@ namespace WebApiClient
         private static readonly ConcurrentCache<Type, object> typeDefaultValueCache = new ConcurrentCache<Type, object>();
 
         /// <summary>
+        /// 表示0个元素的类型集合
+        /// </summary>
+        public static readonly Type[] EmptyTypes = new Type[0];
+
+        /// <summary>
         /// 关联的AttributeUsageAttribute是否AllowMultiple
         /// </summary>
         /// <param name="type"></param>
@@ -63,18 +68,7 @@ namespace WebApiClient
         }
 
 
-#if NETSTANDARD1_3
-        /// <summary>
-        /// 获取构造参数
-        /// </summary>
-        /// <param name="typeInfo">类型</param>
-        /// <param name="types">参数类型</param>
-        /// <returns></returns>
-        public static ConstructorInfo GetConstructor(this TypeInfo typeInfo, Type[] types)
-        {
-            return typeInfo.AsType().GetConstructor(types);
-        }
-#else
+#if !NETSTANDARD1_3        
         /// <summary>
         /// 返回type的详细类型
         /// </summary>
@@ -98,7 +92,7 @@ namespace WebApiClient
 
         /// <summary>
         /// 获取接口类型及其继承的接口的所有方法
-        /// 忽略HttpApiClient类型的所有接口的方法
+        /// 忽略HttpApi类型的所有接口的方法
         /// </summary>
         /// <param name="interfaceType">接口类型</param> 
         /// <exception cref="ArgumentException"></exception>
@@ -112,7 +106,7 @@ namespace WebApiClient
             }
 
             var apiMethods = new[] { interfaceType }.Concat(interfaceType.GetInterfaces())
-                .Except(typeof(HttpApiClient).GetInterfaces())
+                .Except(typeof(HttpApi).GetInterfaces())
                 .SelectMany(item => item.GetMethods())
 #if JIT
                 .Select(item => item.EnsureApiMethod())

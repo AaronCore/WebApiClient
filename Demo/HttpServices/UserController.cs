@@ -3,6 +3,7 @@ using NetworkSocket.Http;
 using System.IO;
 using System.Xml.Linq;
 using WebApiClient;
+using WebApiClient.Defaults;
 
 namespace Demo.HttpServices
 {
@@ -51,7 +52,7 @@ namespace Demo.HttpServices
         {
             var stream = new MemoryStream(Request.Body);
             var xml = XDocument.Load(stream).ToString();
-            var user = HttpApiConfig.DefaultXmlFormatter.Deserialize(xml, typeof(UserInfo))as UserInfo;
+            var user = XmlFormatter.Instance.Deserialize(xml, typeof(UserInfo)) as UserInfo;
             user.Email = "laojiu@qq.com";
             return new XmlResult(user);
         }

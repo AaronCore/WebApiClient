@@ -2,7 +2,6 @@
 using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using WebApiClient.Defaults;
 
 namespace WebApiClient
 {
@@ -11,28 +10,6 @@ namespace WebApiClient
     /// </summary>
     public class HttpApiConfig : IDisposable
     {
-        /// <summary>
-        /// 获取或设置全局默认xml格式化工具
-        /// </summary>
-        public static IXmlFormatter DefaultXmlFormatter { get; set; } = new XmlFormatter();
-
-        /// <summary>
-        /// 获取或设置全局默认json格式化工具
-        /// </summary>
-        public static IJsonFormatter DefaultJsonFormatter { get; set; } = new JsonFormatter();
-
-        /// <summary>
-        /// 获取或设置全局默认KeyValue格式化工具
-        /// </summary>
-        public static IKeyValueFormatter DefaultKeyValueFormatter { get; set; } = new KeyValueFormatter();
-
-        /// <summary>
-        /// 获取或设置全局默认的参数特性提供者
-        /// </summary>
-        public static IApiParameterAttributeProvider DefaultApiParameterAttributeProvider { get; set; } = new ApiParameterAttributeProvider();
-
-
-
         /// <summary>
         /// 自定义数据容器
         /// </summary>
@@ -47,7 +24,7 @@ namespace WebApiClient
         /// 日志工厂
         /// </summary>
         private ILoggerFactory loggerFactory;
-        
+
         /// <summary>
         /// 同步锁
         /// </summary>
@@ -136,19 +113,27 @@ namespace WebApiClient
         public FormatOptions FormatOptions { get; set; } = new FormatOptions();
 
         /// <summary>
+        /// 获取或设置Api的缓存提供者
+        /// </summary>
+        public IResponseCacheProvider ResponseCacheProvider { get; set; }
+#if !NETSTANDARD1_3
+        = WebApiClient.ResponseCacheProvider.Instance;
+#endif
+
+        /// <summary>
         /// 获取或设置Xml格式化工具
         /// </summary>
-        public IXmlFormatter XmlFormatter { get; set; } = DefaultXmlFormatter;
+        public IXmlFormatter XmlFormatter { get; set; } = Defaults.XmlFormatter.Instance;
 
         /// <summary>
         /// 获取或设置Json格式化工具
         /// </summary>
-        public IJsonFormatter JsonFormatter { get; set; } = DefaultJsonFormatter;
+        public IJsonFormatter JsonFormatter { get; set; } = Defaults.JsonFormatter.Instance;
 
         /// <summary>
         /// 获取或设置KeyValue格式化工具
         /// </summary>
-        public IKeyValueFormatter KeyValueFormatter { get; set; } = DefaultKeyValueFormatter;
+        public IKeyValueFormatter KeyValueFormatter { get; set; } = Defaults.KeyValueFormatter.Instance;
 
         /// <summary>
         /// 获取全局过滤器集合
@@ -180,7 +165,7 @@ namespace WebApiClient
         /// </summary>
         /// <param name="httpClient">外部HttpClient实例</param>
         /// <exception cref="ArgumentNullException"></exception>
-        public HttpApiConfig(HttpClient httpClient)          
+        public HttpApiConfig(HttpClient httpClient)
         {
             this.HttpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             this.SetDefaultRequestHeaders(httpClient.DefaultRequestHeaders);

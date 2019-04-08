@@ -4,23 +4,22 @@ using System.Diagnostics;
 namespace WebApiClient
 {
     /// <summary>
-    /// 表示HttpApi客户端
-    /// 提供创建HttpApiClient实例的方法
+    /// 提供HttpApi的创建、注册和解析   
     /// </summary>
     [DebuggerTypeProxy(typeof(DebugView))]
-    public abstract partial class HttpApiClient : IHttpApiClient, IHttpApi, IDisposable
+    public abstract partial class HttpApi : IHttpApi
     {
         /// <summary>
-        /// 获取Api拦截器
+        /// 获取拦截器
         /// </summary>
-        public IApiInterceptor ApiInterceptor { get; private set; }
+        public IApiInterceptor ApiInterceptor { get; }
 
         /// <summary>
-        /// http客户端的基类
+        /// http接口代理类的基类
         /// </summary>
         /// <param name="apiInterceptor">拦截器</param>
         /// <exception cref="ArgumentNullException"></exception>
-        public HttpApiClient(IApiInterceptor apiInterceptor)
+        public HttpApi(IApiInterceptor apiInterceptor)
         {
             this.ApiInterceptor = apiInterceptor ?? throw new ArgumentNullException(nameof(apiInterceptor));
         }
@@ -36,13 +35,13 @@ namespace WebApiClient
         /// <summary>
         /// 调试视图
         /// </summary>
-        private class DebugView : HttpApiClient
+        private class DebugView : HttpApi
         {
             /// <summary>
             /// 调试视图
             /// </summary>
             /// <param name="target">查看的对象</param>
-            public DebugView(HttpApiClient target)
+            public DebugView(HttpApi target)
                 : base(target.ApiInterceptor)
             {
             }
