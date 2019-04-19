@@ -11,15 +11,19 @@ namespace WebApiClient
         /// <summary>
         /// 日期时间格式
         /// </summary>
-        private string dateTimeFormat;
+        private string datetimeFormat;
 
         /// <summary>
-        /// 获取或设置序列化时是否使用骆驼命名
-        /// 对于JsonFormatter将影响到属性的名称
-        /// 对于KeyValueFormatter将影响到Key的值
+        /// 获取或设置序列化时是否使用骆驼命名    
         /// 默认为false
         /// </summary>
         public bool UseCamelCase { get; set; }
+
+        /// <summary>
+        /// 获取或设置是否忽略null值属性的序列化
+        /// 默认为false
+        /// </summary>
+        public bool IgnoreNullProperty { get; set; }
 
         /// <summary>
         /// 获取或设置序列化DateTime类型使用的格式
@@ -30,25 +34,20 @@ namespace WebApiClient
         {
             get
             {
-                return this.dateTimeFormat;
+                if (this.datetimeFormat == null)
+                {
+                    this.datetimeFormat = DateTimeFormats.LocalDateTimeFormat;
+                }
+                return this.datetimeFormat;
             }
             set
             {
                 if (string.IsNullOrEmpty(value))
                 {
-                    throw new ArgumentNullException(nameof(value));
+                    throw new ArgumentNullException(nameof(DateTimeFormat));
                 }
-                this.dateTimeFormat = value;
+                this.datetimeFormat = value;
             }
-        }
-
-        /// <summary>
-        /// 格式化选项
-        /// </summary>
-        public FormatOptions()
-        {
-            this.UseCamelCase = false;
-            this.DateTimeFormat = DateTimeFormats.LocalDateTimeFormat;
         }
 
         /// <summary>
@@ -59,7 +58,12 @@ namespace WebApiClient
         /// <returns></returns>
         public FormatOptions CloneChange(string datetimeFormat)
         {
-            if (string.IsNullOrEmpty(datetimeFormat) || string.Equals(this.DateTimeFormat, datetimeFormat))
+            if (string.IsNullOrEmpty(datetimeFormat) == true)
+            {
+                return this;
+            }
+
+            if (datetimeFormat.Equals(this.DateTimeFormat) == true)
             {
                 return this;
             }
@@ -67,6 +71,7 @@ namespace WebApiClient
             return new FormatOptions
             {
                 DateTimeFormat = datetimeFormat,
+                IgnoreNullProperty = this.IgnoreNullProperty,
                 UseCamelCase = this.UseCamelCase
             };
         }

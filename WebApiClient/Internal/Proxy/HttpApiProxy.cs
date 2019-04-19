@@ -17,12 +17,12 @@ namespace WebApiClient
         /// <summary>
         /// 获取代理类型
         /// </summary>
-        public Type ProxyType { get; private set; }
+        public Type ProxyType { get; }
 
         /// <summary>
         /// 获取接口声明的Api方法
         /// </summary>
-        public MethodInfo[] ApiMethods { get; private set; }
+        public MethodInfo[] ApiMethods { get; }
 
         /// <summary>
         /// 代理描述
@@ -34,7 +34,7 @@ namespace WebApiClient
         {
             this.ProxyType = proxyType ?? throw new ArgumentNullException(nameof(proxyType));
             this.ApiMethods = apiMethods ?? throw new ArgumentNullException(nameof(apiMethods));
-            this.proxyFactory = Lambda.CreateNewFunc<HttpApi, IApiInterceptor, MethodInfo[]>(proxyType);
+            this.proxyFactory = Lambda.CreateCtorFunc<IApiInterceptor, MethodInfo[], HttpApi>(proxyType);
         }
 
         /// <summary>

@@ -9,7 +9,7 @@ namespace WebApiClient
     /// 表示自定义数据的存储和访问容器
     /// 线程安全类型
     /// </summary>
-    [DebuggerDisplay("Id = {Id}")]
+    [DebuggerDisplay("Count = {lazy.Value.Count}")]
     [DebuggerTypeProxy(typeof(DebugView))]
     public sealed class Tags
     {
@@ -21,15 +21,8 @@ namespace WebApiClient
         /// <summary>
         /// 数据字典
         /// </summary>
-        private readonly Lazy<Dictionary<string, object>> lazy;
+        private readonly Lazy<Dictionary<string, object>> lazy = new Lazy<Dictionary<string, object>>(() => new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase), true);
 
-        /// <summary>
-        /// 定义数据的存储和访问容器
-        /// </summary>
-        public Tags()
-        {
-            this.lazy = new Lazy<Dictionary<string, object>>(() => new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase), true);
-        }
 
         /// <summary>
         /// 获取或设置唯一标识符
@@ -37,20 +30,17 @@ namespace WebApiClient
         public string Id { get; set; }
 
         /// <summary>
-        /// 获取值
+        /// 根据键获取值
         /// </summary>
         /// <param name="key">键</param>
         /// <returns></returns>
         public TagItem this[string key]
         {
-            get
-            {
-                return this.Get(key);
-            }
+            get => this.Get(key);
         }
 
         /// <summary>
-        /// 获取值
+        /// 根据键获取值
         /// </summary>
         /// <param name="key">键</param>
         /// <returns></returns>
@@ -58,13 +48,16 @@ namespace WebApiClient
         {
             lock (this.syncRoot)
             {
-                this.lazy.Value.TryGetValue(key, out object value);
-                return new TagItem(value);
+                if (this.lazy.Value.TryGetValue(key, out object value) == true)
+                {
+                    return new TagItem(value);
+                }
+                return TagItem.NoValue;
             }
         }
 
         /// <summary>
-        /// 删除键
+        /// 删除指定的键
         /// </summary>
         /// <param name="key">键</param>
         /// <returns></returns>
@@ -82,7 +75,27 @@ namespace WebApiClient
         }
 
         /// <summary>
-        /// 设置值
+        /// 根据键取出埴
+        /// 取出之后删除相应的键
+        /// 等同于Get之后再Remove
+        /// </summary>
+        /// <param name="key">键</param>
+        /// <returns></returns>
+        public TagItem Take(string key)
+        {
+            lock (this.syncRoot)
+            {
+                if (this.lazy.Value.TryGetValue(key, out object value) == true)
+                {
+                    this.lazy.Value.Remove(key);
+                    return new TagItem(value);
+                }
+                return TagItem.NoValue;
+            }
+        }
+
+        /// <summary>
+        /// 根据键设置值
         /// </summary>
         /// <param name="key">键</param>
         /// <param name="value">值</param>
@@ -119,14 +132,7 @@ namespace WebApiClient
             [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
             public KeyValuePair<string, object>[] Values
             {
-                get
-                {
-                    if (this.value == null)
-                    {
-                        return new KeyValuePair<string, object>[0];
-                    }
-                    return this.value.ToArray();
-                }
+                get => this.value == null ? (new KeyValuePair<string, object>[0]) : this.value.ToArray();
             }
         }
     }

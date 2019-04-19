@@ -52,7 +52,7 @@ namespace WebApiClient
         /// <summary>
         /// 获取接口类型
         /// </summary>
-        protected Type InterfaceType { get; private set; }
+        protected Type InterfaceType { get; }
 
         /// <summary>
         /// HttpApi创建工厂
@@ -106,7 +106,7 @@ namespace WebApiClient
         {
             if (lifeTime <= TimeSpan.Zero)
             {
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException(nameof(lifeTime));
             }
             this.lifeTime = lifeTime;
             return this;
@@ -122,7 +122,7 @@ namespace WebApiClient
         {
             if (interval <= TimeSpan.Zero)
             {
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException(nameof(interval));
             }
             this.httpHandlerCleaner.CleanupInterval = interval;
             return this;

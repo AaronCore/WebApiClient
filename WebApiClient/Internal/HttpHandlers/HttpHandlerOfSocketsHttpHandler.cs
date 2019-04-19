@@ -21,7 +21,7 @@ namespace WebApiClient
         /// <summary>
         /// 获取原始的Handler对象
         /// </summary>
-        public HttpMessageHandler SourceHanlder { get; private set; }
+        public HttpMessageHandler SourceHandler { get; }
 
 
         /// <summary>
@@ -45,8 +45,8 @@ namespace WebApiClient
         /// </summary>
         public long MaxRequestContentBufferSize
         {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
+            get => throw new NotSupportedException(nameof(MaxRequestContentBufferSize));
+            set => throw new NotSupportedException(nameof(MaxRequestContentBufferSize));
         }
 
         /// <summary>
@@ -54,8 +54,8 @@ namespace WebApiClient
         /// </summary>
         public ClientCertificateOption ClientCertificateOptions
         {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
+            get => throw new NotSupportedException(nameof(ClientCertificateOptions));
+            set => throw new NotSupportedException(nameof(ClientCertificateOptions));
         }
 
         /// <summary>
@@ -63,8 +63,8 @@ namespace WebApiClient
         /// </summary>
         public bool UseDefaultCredentials
         {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
+            get => throw new NotSupportedException(nameof(UseDefaultCredentials));
+            set => throw new NotSupportedException(nameof(UseDefaultCredentials));
         }
 
         /// <summary>
@@ -224,7 +224,7 @@ namespace WebApiClient
         public HttpHandlerOfSocketsHttpHandler(SocketsHttpHandler socketsHandler, HttpMessageHandler sourceHandler)
         {
             this.socketsHandler = socketsHandler;
-            this.SourceHanlder = sourceHandler;
+            this.SourceHandler = sourceHandler;
         }
 
         /// <summary>
@@ -232,7 +232,7 @@ namespace WebApiClient
         /// </summary>
         public void Dispose()
         {
-            this.SourceHanlder.Dispose();
+            this.SourceHandler.Dispose();
         }
     }
 }

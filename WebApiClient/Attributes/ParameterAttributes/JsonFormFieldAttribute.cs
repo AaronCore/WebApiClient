@@ -24,12 +24,12 @@ namespace WebApiClient.Attributes
         /// <returns></returns>
         public async Task BeforeRequestAsync(ApiActionContext context, ApiParameterDescriptor parameter)
         {
-            if (this.IsIgnoreWith(parameter) == false)
+            if (this.IgnoreWhenNull(parameter) == false)
             {
                 var options = context.HttpApiConfig.FormatOptions;
                 var json = context.HttpApiConfig.JsonFormatter.Serialize(parameter.Value, options);
                 var fieldName = parameter.Name;
-                await context.RequestMessage.AddFormFieldAsync(fieldName, json);
+                await context.RequestMessage.AddFormFieldAsync(fieldName, json).ConfigureAwait(false);
             }
         }
     }

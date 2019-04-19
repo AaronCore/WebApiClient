@@ -29,6 +29,7 @@ namespace WebApiClient.Attributes
         /// <summary>
         /// 表示参数值作为x-www-form-urlencoded的字段
         /// </summary>
+        [AttributeCtorUsage(AttributeTargets.Parameter)]
         public FormFieldAttribute()
         {
         }
@@ -39,6 +40,7 @@ namespace WebApiClient.Attributes
         /// <param name="name">字段名称</param>
         /// <param name="value">字段的值</param>
         /// <exception cref="ArgumentNullException"></exception>
+        [AttributeCtorUsage(AttributeTargets.Interface | AttributeTargets.Method)]
         public FormFieldAttribute(string name, object value)
         {
             if (string.IsNullOrEmpty(name))
@@ -62,7 +64,7 @@ namespace WebApiClient.Attributes
                 throw new HttpApiConfigException($"请传入name和value参数：{nameof(FormFieldAttribute)}");
             }
 
-            if (this.IsIgnoreWith(this.value) == false)
+            if (this.IgnoreWhenNull(this.value) == false)
             {
                 await context.RequestMessage.AddFormFieldAsync(this.name, this.value).ConfigureAwait(false);
             }
@@ -76,7 +78,7 @@ namespace WebApiClient.Attributes
         /// <returns></returns>
         async Task IApiParameterAttribute.BeforeRequestAsync(ApiActionContext context, ApiParameterDescriptor parameter)
         {
-            if (this.IsIgnoreWith(parameter) == false)
+            if (this.IgnoreWhenNull(parameter) == false)
             {
                 await context.RequestMessage.AddFormFieldAsync(parameter.Name, parameter.ToString()).ConfigureAwait(false);
             }

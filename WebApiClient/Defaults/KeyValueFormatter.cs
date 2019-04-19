@@ -1,7 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using WebApiClient.Contexts;
 using WebApiClient.DataAnnotations;
 
@@ -28,17 +27,13 @@ namespace WebApiClient.Defaults
         /// <param name="name">对象名称</param>
         /// <param name="obj">对象实例</param>
         /// <param name="options">选项</param>
+        /// <exception cref="ArgumentNullException"></exception>
         /// <returns></returns>
         public IEnumerable<KeyValuePair<string, string>> Serialize(string name, object obj, FormatOptions options)
         {
-            if (obj == null)
+            if (string.IsNullOrEmpty(name) == true)
             {
-                return Enumerable.Empty<KeyValuePair<string, string>>();
-            }
-
-            if (options == null)
-            {
-                options = new FormatOptions();
+                throw new ArgumentNullException(nameof(name));
             }
 
             var setting = this.CreateSerializerSettings(options);
@@ -55,9 +50,14 @@ namespace WebApiClient.Defaults
         /// </summary>
         /// <param name="parameter">参数</param>
         /// <param name="options">选项</param>
+        /// <exception cref="ArgumentNullException"></exception>
         /// <returns></returns>
         public IEnumerable<KeyValuePair<string, string>> Serialize(ApiParameterDescriptor parameter, FormatOptions options)
         {
+            if (parameter == null)
+            {
+                throw new ArgumentNullException(nameof(parameter));
+            }
             return this.Serialize(parameter.Name, parameter.Value, options);
         }
 
@@ -68,13 +68,8 @@ namespace WebApiClient.Defaults
         /// <returns></returns>
         protected virtual JsonSerializerSettings CreateSerializerSettings(FormatOptions options)
         {
-            var useCamelCase = options.UseCamelCase;
-            var setting = new JsonSerializerSettings
-            {
-                DateFormatString = options.DateTimeFormat,
-                ContractResolver = AnnotationsContractResolver.GetResolver(FormatScope.KeyValueFormat, useCamelCase)
-            };
-
+            var useCamelCase = options?.UseCamelCase == true;
+            var setting = options.ToSerializerSettings(FormatScope.KeyValueFormat);
             setting.Converters.Add(new KeyValuePairConverter(useCamelCase));
             return setting;
         }

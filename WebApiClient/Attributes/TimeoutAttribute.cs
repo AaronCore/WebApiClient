@@ -16,11 +16,13 @@ namespace WebApiClient.Attributes
         /// <summary>
         /// 获取超时时间
         /// </summary>
-        public TimeSpan? TimeSpan { get; private set; }
+        public TimeSpan? TimeSpan { get; }
 
         /// <summary>
         /// 表示将参数值作为请求的超时时间
+        /// 支持参数类型为数值类型和TimeSpan类型，以及他们的可空类型
         /// </summary>
+        [AttributeCtorUsage(AttributeTargets.Parameter)]
         public TimeoutAttribute()
         {
         }
@@ -29,6 +31,7 @@ namespace WebApiClient.Attributes
         /// 指定请求的超时时间
         /// </summary>
         /// <param name="milliseconds">超时时间的毫秒数</param>
+        [AttributeCtorUsage(AttributeTargets.Interface | AttributeTargets.Method)]
         public TimeoutAttribute(int milliseconds)
             : this((double)milliseconds)
         {
@@ -38,6 +41,7 @@ namespace WebApiClient.Attributes
         /// 指定请求的超时时间
         /// </summary>
         /// <param name="milliseconds">超时时间的毫秒数</param>
+        [AttributeCtorUsage(AttributeTargets.Interface | AttributeTargets.Method)]
         public TimeoutAttribute(double milliseconds)
         {
             this.TimeSpan = System.TimeSpan.FromMilliseconds(milliseconds);
@@ -67,23 +71,28 @@ namespace WebApiClient.Attributes
         /// <param name="parameter">特性关联的参数</param>
         /// <exception cref="HttpApiConfigException"></exception>
         /// <returns></returns>
-        Task IApiParameterAttribute.BeforeRequestAsync(ApiActionContext context, ApiParameterDescriptor parameter)
+        async Task IApiParameterAttribute.BeforeRequestAsync(ApiActionContext context, ApiParameterDescriptor parameter)
         {
-            if (parameter.Value is IConvertible convertible)
+            if (parameter.Value == null)
             {
-                var doubleValue = Convert.ToDouble(convertible);
-                var timeout = System.TimeSpan.FromMilliseconds(doubleValue);
-                this.SetTimeout(context, timeout);
+                return;
             }
-            else if (parameter.Value is TimeSpan timeout)
+
+            if (parameter.Value is TimeSpan timespan)
             {
+                this.SetTimeout(context, timespan);
+            }
+            else if (parameter.Value is IConvertible convertible)
+            {
+                var milliseconds = convertible.ToDouble(null);
+                var timeout = System.TimeSpan.FromMilliseconds(milliseconds);
                 this.SetTimeout(context, timeout);
             }
             else
             {
                 throw new HttpApiConfigException($"无法将参数{parameter.Member}转换为Timeout");
             }
-            return ApiTask.CompletedTask;
+            await ApiTask.CompletedTask;
         }
 
 

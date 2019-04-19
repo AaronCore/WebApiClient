@@ -29,6 +29,7 @@ namespace WebApiClient.Attributes
         /// <summary>
         /// 表示参数值作为multipart/form-data表单的一个文本项
         /// </summary>
+        [AttributeCtorUsage(AttributeTargets.Parameter)]
         public MulitpartTextAttribute()
         {
         }
@@ -39,6 +40,7 @@ namespace WebApiClient.Attributes
         /// <param name="name">字段名称</param>
         /// <param name="value">字段的值</param>
         /// <exception cref="ArgumentNullException"></exception>
+        [AttributeCtorUsage(AttributeTargets.Interface | AttributeTargets.Method)]
         public MulitpartTextAttribute(string name, object value)
         {
             if (string.IsNullOrEmpty(name))
@@ -62,7 +64,7 @@ namespace WebApiClient.Attributes
                 throw new HttpApiConfigException($"请传入name和value参数：{nameof(MulitpartTextAttribute)}");
             }
 
-            if (this.IsIgnoreWith(this.value) == false)
+            if (this.IgnoreWhenNull(this.value) == false)
             {
                 context.RequestMessage.AddMulitpartText(this.name, this.value);
                 await ApiTask.CompletedTask;
@@ -77,7 +79,7 @@ namespace WebApiClient.Attributes
         /// <returns></returns>
         async Task IApiParameterAttribute.BeforeRequestAsync(ApiActionContext context, ApiParameterDescriptor parameter)
         {
-            if (this.IsIgnoreWith(parameter) == false)
+            if (this.IgnoreWhenNull(parameter) == false)
             {
                 context.RequestMessage.AddMulitpartText(parameter.Name, parameter.ToString());
                 await ApiTask.CompletedTask;

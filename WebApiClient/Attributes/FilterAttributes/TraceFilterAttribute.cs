@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
-using System.Text;
+using System.Threading.Tasks;
 using WebApiClient.Contexts;
 
 namespace WebApiClient.Attributes
@@ -12,118 +12,148 @@ namespace WebApiClient.Attributes
     public class TraceFilterAttribute : TraceFilterBaseAttribute
     {
         /// <summary>
-        /// 获取或设置日志工厂的EventId
+        /// 获取或设置事件Id
         /// </summary>
         public int EventId { get; set; }
 
+#if NETSTANDARD1_3
         /// <summary>
-        /// 获取输出目标
-        /// 默认只输出到LoggerFactory
+        /// 获取或设置输出目标
+        /// 默认为LoggerFactory
         /// </summary>
-        public OutputTarget OutputTarget { get; }
-
+        public OutputTarget OutputTarget { get; set; } = OutputTarget.LoggerFactory;
+#else
         /// <summary>
-        /// 将请求响应内容指定目标的过滤器
+        /// 获取或设置输出目标
+        /// 默认为LoggerFactory | Debug
         /// </summary>
-        /// <param name="outputTarget">输出目标，支持多个</param>
-        public TraceFilterAttribute(OutputTarget outputTarget = OutputTarget.LoggerFactory)
-        {
-            this.OutputTarget = outputTarget;
-        }
-
+        public OutputTarget OutputTarget { get; set; } = OutputTarget.LoggerFactory | OutputTarget.Debug;
+#endif
         /// <summary>
-        /// 输出异常
+        /// 准备请求之前
         /// </summary>
         /// <param name="context">上下文</param>
-        /// <param name="exception">异常</param>
-        /// <param name="message">消息</param>
-        protected override void LogError(ApiActionContext context, Exception exception, string message)
+        /// <returns></returns>
+        public sealed async override Task OnBeginRequestAsync(ApiActionContext context)
         {
-            this.Log(context, message, exception);
-        }
-
-        /// <summary>
-        /// 输出消息
-        /// </summary>
-        /// <param name="context">上下文</param>
-        /// <param name="message">消息</param>
-        protected override void LogInformation(ApiActionContext context, string message)
-        {
-            this.Log(context, message, exception: null);
-        }
-
-        /// <summary>
-        /// 输出日志
-        /// </summary>
-        /// <param name="context"></param>
-        /// <param name="message"></param>
-        /// <param name="exception"></param>       
-        private void Log(ApiActionContext context, string message, Exception exception)
-        {
-            if (this.OutputTarget.HasFlag(OutputTarget.LoggerFactory))
+            if (this.IsNeedToTrace(context) == true)
             {
-                if (exception == null)
+                await base.OnBeginRequestAsync(context).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// 请求完成之后
+        /// </summary>
+        /// <param name="context">上下文</param>
+        /// <returns></returns>
+        public sealed async override Task OnEndRequestAsync(ApiActionContext context)
+        {
+            if (this.IsNeedToTrace(context) == true)
+            {
+                await base.OnEndRequestAsync(context).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// 返回是否需要追踪
+        /// </summary>
+        /// <param name="context">上下文</param>
+        /// <returns></returns>
+        private bool IsNeedToTrace(ApiActionContext context)
+        {
+            if (this.OutputTarget == OutputTarget.LoggerFactory)
+            {
+                if (context.HttpApiConfig.LoggerFactory == null)
                 {
-                    this.GetLogger(context)?.LogInformation(message);
-                }
-                else
-                {
-                    this.GetLogger(context)?.LogError(this.EventId, exception, message);
+                    return false;
                 }
             }
+            return true;
+        }
 
-            if (this.OutputTarget.HasFlag(OutputTarget.Debug))
+        /// <summary>
+        /// 输出追踪到的消息
+        /// </summary>
+        /// <param name="context">上下文</param>
+        /// <param name="traceMessage">追踪的消息</param>
+        /// <returns></returns>
+        protected override Task LogTraceMessageAsync(ApiActionContext context, TraceMessage traceMessage)
+        {
+            var method = context.ApiActionDescriptor.Member;
+            var actionName = $"{method.DeclaringType.Name}.{method.Name}";
+
+            if (this.OutputTarget.HasFlag(OutputTarget.LoggerFactory))
             {
-                Debug.Write(this.GetLogContent(context, message, exception));
+                this.WriteLoggerFactory(context, actionName, traceMessage);
             }
 
             if (this.OutputTarget.HasFlag(OutputTarget.Console))
             {
-                Console.Write(this.GetLogContent(context, message, exception));
+                var message = this.FormatTraceMessage(OutputTarget.Console, traceMessage);
+                Console.Write($"{actionName}[{this.EventId}]{Environment.NewLine}{message}");
             }
 
 #if !NETSTANDARD1_3
+            if (this.OutputTarget.HasFlag(OutputTarget.Debug))
+            {
+                var message = this.FormatTraceMessage(OutputTarget.Debug, traceMessage);
+                Trace.Write($"{actionName}[{this.EventId}]{Environment.NewLine}{message}");
+            }
+
             if (this.OutputTarget.HasFlag(OutputTarget.Debugger))
             {
-                Debugger.Log(0, null, this.GetLogContent(context, message, exception));
+                var message = this.FormatTraceMessage(OutputTarget.Debugger, traceMessage);
+                Debugger.Log(0, null, $"{actionName}[{this.EventId}]{Environment.NewLine}{message}");
             }
 #endif
+            return ApiTask.CompletedTask;
         }
 
+
         /// <summary>
-        /// 获取日志组件
+        /// 写入LoggerFactory
         /// </summary>
         /// <param name="context">上下文</param>
-        /// <returns></returns>
-        private ILogger GetLogger(ApiActionContext context)
+        /// <param name="categoryName">日志容器名称</param>
+        /// <param name="traceMessage">追踪的消息</param>
+        private void WriteLoggerFactory(ApiActionContext context, string categoryName, TraceMessage traceMessage)
         {
             var logging = context.HttpApiConfig.LoggerFactory;
-            var method = context.ApiActionDescriptor.Member;
-            var categoryName = $"{method.DeclaringType.Name}.{method.Name}";
-            return logging.CreateLogger(categoryName);
+            if (logging == null)
+            {
+                return;
+            }
+
+            var logger = logging.CreateLogger(categoryName);
+            var message = this.FormatTraceMessage(OutputTarget.LoggerFactory, traceMessage);
+
+            if (traceMessage.Exception == null)
+            {
+                logger.LogInformation(this.EventId, message);
+            }
+            else
+            {
+                logger.LogError(this.EventId, traceMessage.Exception, message);
+            }
         }
 
         /// <summary>
-        /// 获取完整日志内容
+        /// 格式化追踪到的消息
         /// </summary>
-        /// <param name="context">上下文</param>
-        /// <param name="message">消息</param>
-        /// <param name="exception">异常</param>
+        /// <param name="outputTarget">输出目标</param>
+        /// <param name="traceMessage">追踪的消息</param>
         /// <returns></returns>
-        private string GetLogContent(ApiActionContext context, string message, Exception exception)
+        protected virtual string FormatTraceMessage(OutputTarget outputTarget, TraceMessage traceMessage)
         {
-            var method = context.ApiActionDescriptor.Member;
-            var methodName = $"{method.DeclaringType.Name}.{method.Name}";
-
-            var log = new StringBuilder()
-                .AppendLine(methodName)
-                .AppendLine(message);
-
-            if (exception != null)
+            if (outputTarget == OutputTarget.LoggerFactory)
             {
-                log.AppendLine(exception.ToString());
+                return traceMessage.ToString();
             }
-            return log.ToString();
+            else
+            {
+                return traceMessage.ToIndentedString(spaceCount: 4);
+            }
         }
     }
 }

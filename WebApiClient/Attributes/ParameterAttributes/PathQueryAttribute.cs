@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using WebApiClient.Contexts;
@@ -25,14 +24,8 @@ namespace WebApiClient.Attributes
         /// <exception cref="ArgumentException"></exception>
         public string Encoding
         {
-            get
-            {
-                return this.encoding.WebName;
-            }
-            set
-            {
-                this.encoding = System.Text.Encoding.GetEncoding(value);
-            }
+            get => this.encoding.WebName;
+            set => this.encoding = System.Text.Encoding.GetEncoding(value);
         }
 
         /// <summary>
@@ -83,7 +76,7 @@ namespace WebApiClient.Attributes
                 throw new HttpApiConfigException($"未配置HttpHost，无法使用参数{parameter.Name}");
             }
 
-            if (this.IsIgnoreWith(parameter) == true)
+            if (this.IgnoreWhenNull(parameter) == true)
             {
                 return;
             }
@@ -97,7 +90,7 @@ namespace WebApiClient.Attributes
                 .HttpApiConfig
                 .KeyValueFormatter
                 .Serialize(parameter, options)
-                .FormateAs(this.CollectionFormat);
+                .FormatAs(this.CollectionFormat);
 
             context.RequestMessage.RequestUri = this.UsePathQuery(uri, keyValues);
             await ApiTask.CompletedTask;
@@ -109,7 +102,7 @@ namespace WebApiClient.Attributes
         /// <param name="uri">url</param>
         /// <param name="keyValues">键值对</param>
         /// <returns></returns>
-        protected Uri UsePathQuery(Uri uri, IEnumerable<KeyValuePair<string, string>> keyValues)
+        protected virtual Uri UsePathQuery(Uri uri, IEnumerable<KeyValuePair<string, string>> keyValues)
         {
             var editor = new UriEditor(uri, this.encoding);
             foreach (var keyValue in keyValues)
