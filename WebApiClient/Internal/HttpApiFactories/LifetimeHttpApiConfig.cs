@@ -24,6 +24,11 @@ namespace WebApiClient
         /// <param name="disposing"></param>
         protected sealed override void Dispose(bool disposing)
         {
+            // 如果是Finalize调用，则保持基类的Dispose逻辑
+            if (disposing == false)
+            {
+                base.Dispose(disposing);
+            }
         }
     }
 }

@@ -8,7 +8,7 @@ namespace WebApiClient
     /// <summary>
     /// 表示Api响应结果缓存提供者的接口
     /// </summary>
-    class ResponseCacheProvider : IResponseCacheProvider
+    class ResponseCacheProvider : Disposable, IResponseCacheProvider
     {
         /// <summary>
         /// 默认实例
@@ -55,8 +55,17 @@ namespace WebApiClient
         /// <returns></returns>
         public Task SetAsync(string key, ResponseCacheEntry entry, TimeSpan expiration)
         {
-            this.cache.Set(key, entry, new DateTimeOffset(DateTime.Now.Add(expiration)));
+            this.cache.Set(key, entry, DateTimeOffset.Now.Add(expiration));
             return ApiTask.CompletedTask;
+        }
+
+        /// <summary>
+        /// 释放资源
+        /// </summary>
+        /// <param name="disposing">是否也释放托管资源</param>
+        protected override void Dispose(bool disposing)
+        {
+            this.cache.Dispose();
         }
     }
 }

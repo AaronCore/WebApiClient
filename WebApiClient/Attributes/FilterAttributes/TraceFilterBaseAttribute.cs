@@ -51,7 +51,12 @@ namespace WebApiClient.Attributes
             {
                 var request = context.RequestMessage;
                 message.RequestHeaders = request.GetHeadersString();
-                if (request.Content != null)
+
+                if (request.Content is ICustomTracable httpContent)
+                {
+                    message.RequestContent = await httpContent.ReadAsStringAsync().ConfigureAwait(false);
+                }
+                else if (request.Content != null)
                 {
                     message.RequestContent = await request.Content.ReadAsStringAsync().ConfigureAwait(false);
                 }
@@ -94,22 +99,14 @@ namespace WebApiClient.Attributes
         private string GetResponseHeadersString(HttpResponseMessage response)
         {
             var builder = new StringBuilder()
-                .AppendLine($"HTTP/{response.Version} {(int)response.StatusCode} {response.ReasonPhrase}");
-
-            foreach (var item in response.Headers)
-            {
-                builder.AppendLine($"{item.Key}: {string.Join(",", item.Value)}");
-            }
+                .AppendLine($"HTTP/{response.Version} {(int)response.StatusCode} {response.ReasonPhrase}")
+                .Append(response.Headers.ToString());
 
             if (response.Content != null)
             {
-                foreach (var item in response.Content.Headers)
-                {
-                    builder.AppendLine($"{item.Key}: {string.Join(",", item.Value)}");
-                }
+                builder.Append(response.Content.Headers.ToString());
             }
-
-            return builder.AppendLine().ToString();
+            return builder.ToString();
         }
 
         /// <summary>

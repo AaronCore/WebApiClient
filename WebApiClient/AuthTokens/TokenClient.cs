@@ -67,7 +67,7 @@ namespace WebApiClient.AuthTokens
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="UriFormatException"></exception>
         public TokenClient(string tokenEndpoint)
-            : this(new Uri(tokenEndpoint))
+            : this(new Uri(tokenEndpoint ?? throw new ArgumentNullException(nameof(tokenEndpoint))))
         {
         }
 
@@ -107,11 +107,11 @@ namespace WebApiClient.AuthTokens
         {
             var credentials = new Credentials
             {
-                grant_type = "client_credentials",
-                client_id = client_id,
-                client_secret = client_secret,
-                scope = scope,
-                extra = extra
+                GrantType = "client_credentials",
+                ClientId = client_id,
+                ClientSecret = client_secret,
+                Scope = scope,
+                Extra = extra
             };
             return this.RequestTokenResultAsync(credentials);
         }
@@ -136,13 +136,13 @@ namespace WebApiClient.AuthTokens
         {
             var credentials = new Credentials
             {
-                grant_type = "password",
-                client_id = client_id,
-                client_secret = client_secret,
-                username = username,
-                password = password,
-                scope = scope,
-                extra = extra
+                GrantType = "password",
+                ClientId = client_id,
+                ClientSecret = client_secret,
+                Username = username,
+                Password = password,
+                Scope = scope,
+                Extra = extra
             };
             return this.RequestTokenResultAsync(credentials);
         }
@@ -163,11 +163,11 @@ namespace WebApiClient.AuthTokens
         {
             var credentials = new Credentials
             {
-                grant_type = "refresh_token",
-                client_id = client_id,
-                client_secret = client_secret,
-                refresh_token = refresh_token,
-                extra = extra
+                GrantType = "refresh_token",
+                ClientId = client_id,
+                ClientSecret = client_secret,
+                RefreshToken = refresh_token,
+                Extra = extra
             };
             return this.RequestTokenResultAsync(credentials);
         }
@@ -180,10 +180,11 @@ namespace WebApiClient.AuthTokens
         private async Task<TokenResult> RequestTokenResultAsync(Credentials credentials)
         {
             var httpContent = new UrlEncodedContent();
-            var keyValues = keyValueFormatter.Serialize(null, credentials, this.FormatOptions);
+            var keyValues = keyValueFormatter.Serialize(nameof(credentials), credentials, this.FormatOptions);
             await httpContent.AddFormFieldAsync(keyValues).ConfigureAwait(false);
 
-            using (var httpClient = new HttpClient { Timeout = this.timeout })
+            var handler = new DefaultHttpClientHandler();
+            using (var httpClient = new HttpClient(handler, true) { Timeout = this.timeout })
             {
                 var response = await httpClient.PostAsync(this.TokenEndpoint, httpContent).ConfigureAwait(false);
                 var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -197,26 +198,34 @@ namespace WebApiClient.AuthTokens
         /// </summary>
         private class Credentials
         {
-            public string grant_type { get; set; }
+            [AliasAs("grant_type")]
+            public string GrantType { get; set; }
 
-            public string client_id { get; set; }
+            [AliasAs("client_id")]
+            public string ClientId { get; set; }
 
-            public string client_secret { get; set; }
-
-            [IgnoreWhenNull]
-            public string username { get; set; }
-
-            [IgnoreWhenNull]
-            public string password { get; set; }
+            [AliasAs("client_secret")]
+            public string ClientSecret { get; set; }
 
             [IgnoreWhenNull]
-            public string scope { get; set; }
+            [AliasAs("username")]
+            public string Username { get; set; }
 
             [IgnoreWhenNull]
-            public string refresh_token { get; set; }
+            [AliasAs("password")]
+            public string Password { get; set; }
 
             [IgnoreWhenNull]
-            public object extra { get; set; }
+            [AliasAs("scope")]
+            public string Scope { get; set; }
+
+            [IgnoreWhenNull]
+            [AliasAs("refresh_token")]
+            public string RefreshToken { get; set; }
+
+            [IgnoreWhenNull]
+            [AliasAs("extra")]
+            public object Extra { get; set; }
         }
     }
 }

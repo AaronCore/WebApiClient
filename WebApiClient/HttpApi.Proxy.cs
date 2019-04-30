@@ -7,34 +7,7 @@ namespace WebApiClient
     /// 提供HttpApi的创建、注册和解析   
     /// </summary>
     public partial class HttpApi
-    {
-        /// <summary>
-        /// 一个站点内的默认连接数限制
-        /// </summary>
-        private static int maxConnections = 128;
-
-        /// <summary>
-        /// 获取或设置一个站点内的默认最大连接数
-        /// 这个值在初始化HttpClientHandler时使用
-        /// 默认值为128
-        /// </summary>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public static int MaxConnections
-        {
-            get
-            {
-                return maxConnections;
-            }
-            set
-            {
-                if (value <= 0)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(MaxConnections));
-                }
-                maxConnections = value;
-            }
-        }
-
+    { 
         /// <summary>
         /// 创建指定接口的代理实例
         /// </summary>

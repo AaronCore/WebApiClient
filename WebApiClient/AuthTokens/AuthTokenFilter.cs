@@ -7,7 +7,7 @@ namespace WebApiClient.AuthTokens
     /// <summary>
     /// 表示OAuth授权的token过滤器抽象类
     /// </summary>
-    public abstract class AuthTokenFilter : IApiActionFilter
+    public abstract class AuthTokenFilter : Disposable, IApiActionFilter
     {
         /// <summary>
         /// 最近请求到的token
@@ -47,6 +47,7 @@ namespace WebApiClient.AuthTokens
         /// <summary>
         /// 初始化或刷新token
         /// </summary>
+        /// <exception cref="HttpApiTokenException"></exception>
         /// <returns></returns>
         private async Task InitOrRefreshTokenAsync()
         {
@@ -76,7 +77,8 @@ namespace WebApiClient.AuthTokens
         /// <param name="tokenResult">token结果</param>
         protected virtual void AccessTokenResult(ApiActionContext context, TokenResult tokenResult)
         {
-            context.RequestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResult.AccessToken);
+            var tokenType = tokenResult.TokenType ?? "Bearer";
+            context.RequestMessage.Headers.Authorization = new AuthenticationHeaderValue(tokenType, tokenResult.AccessToken);
         }
 
         /// <summary>
@@ -93,5 +95,14 @@ namespace WebApiClient.AuthTokens
         /// <param name="refresh_token">获取token时返回的refresh_token</param>
         /// <returns></returns>
         protected abstract Task<TokenResult> RequestRefreshTokenAsync(string refresh_token);
+
+        /// <summary>
+        /// 释放资源
+        /// </summary>
+        /// <param name="disposing">是否也释放托管资源</param>
+        protected override void Dispose(bool disposing)
+        {
+            this.asyncRoot.Dispose();
+        }
     }
 }

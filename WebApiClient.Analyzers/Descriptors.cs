@@ -38,11 +38,18 @@ namespace WebApiClient.Analyzers
             = Create("WA1005", "不支持的泛型方法", "不支持声明泛型方法");
 
         /// <summary>
+        /// UriAttribute诊断描述器
+        /// </summary>
+        public static DiagnosticDescriptor UriAttributeDescriptor { get; }
+            = Create("WA1006", "不支持的修饰的参数索引", "UriAttribute只能修饰于第一个参数");
+
+
+        /// <summary>
         /// HttpApi.Create Api诊断描述器
         /// </summary>
         public static DiagnosticDescriptor HttpApiCreateDescriptor { get; }
             = Create("WA2001", "慎用的Create函数",
-                "请慎用HttpApi.Create()函数，除非结合HttpClient工厂使用或者用于请求之后就释放的短链接请求",
+                "建议使用HttpApi.Register/Resolve函数，HttpApi.Create一般用于结合HttpClient工厂使用或者用于请求之后就释放的短链接请求",
                 level: DiagnosticSeverity.Warning,
                 helpLinkUri: "https://github.com/dotnetcore/WebApiClient/wiki/WebApiClient%E8%BF%9B%E9%98%B6");
 

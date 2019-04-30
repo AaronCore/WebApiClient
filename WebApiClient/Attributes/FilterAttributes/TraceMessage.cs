@@ -61,6 +61,25 @@ namespace WebApiClient.Attributes
 
 
         /// <summary>
+        /// 返回不包含异常的调试消息
+        /// </summary>
+        /// <returns></returns>
+        public TraceMessage ToExcludeException()
+        {
+            return new TraceMessage
+            {
+                HasRequest = this.HasRequest,
+                HasResponse = this.HasResponse,
+                RequestContent = this.RequestContent,
+                RequestHeaders = this.RequestHeaders,
+                RequestTime = this.RequestTime,
+                ResponseContent = this.ResponseContent,
+                ResponseHeaders = this.ResponseHeaders,
+                ResponseTime = this.ResponseTime
+            };
+        }
+
+        /// <summary>
         /// 转换为每行缩进的字符串
         /// </summary>
         /// <param name="spaceCount">缩进的空格数</param>
@@ -105,6 +124,7 @@ namespace WebApiClient.Attributes
                 builder
                     .AppendLine($"[REQUEST]{this.RequestTime.ToString(timeFormat)}")
                     .AppendIfNotNull(this.RequestHeaders)
+                    .AppendLineIf(this.RequestContent != null)
                     .AppendLineIfNotNull(this.RequestContent);
             }
 
@@ -114,6 +134,7 @@ namespace WebApiClient.Attributes
                     .AppendLineIfHasValue()
                     .AppendLine($"[RESPONSE]{this.ResponseTime.ToString(timeFormat)}")
                     .AppendIfNotNull(this.ResponseHeaders)
+                    .AppendLineIf(this.ResponseContent != null)
                     .AppendLineIfNotNull(this.ResponseContent);
             }
 
@@ -160,6 +181,20 @@ namespace WebApiClient.Attributes
             public TextBuilder AppendLine(string value)
             {
                 this.builder.AppendLine(value);
+                return this;
+            }
+
+            /// <summary>
+            /// 如果条件满足则添加换行
+            /// </summary>
+            /// <param name="predicate"></param>
+            /// <returns></returns>
+            public TextBuilder AppendLineIf(bool predicate)
+            {
+                if (predicate == true)
+                {
+                    this.builder.AppendLine();
+                }
                 return this;
             }
 

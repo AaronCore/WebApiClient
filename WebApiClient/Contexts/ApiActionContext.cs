@@ -10,7 +10,7 @@ namespace WebApiClient.Contexts
     /// <summary>
     /// 表示请求Api的上下文
     /// </summary>
-    public class ApiActionContext : IDisposable
+    public class ApiActionContext : Disposable
     {
         /// <summary>
         /// 获取httpApi代理类实例
@@ -108,7 +108,7 @@ namespace WebApiClient.Contexts
             catch (Exception ex)
             {
                 this.Exception = ex;
-                throw this.Exception;
+                throw;
             }
             finally
             {
@@ -227,11 +227,15 @@ namespace WebApiClient.Contexts
         }
 
         /// <summary>
-        /// 释放资源
+        /// 在nfx下请求完成时会自动Dispose了RequestMessage相关的HttpConent，所以RequestMessage在本方法不会得到Dispose
+        /// 但在corefx下，RequestMessage在本方法会得到Dispose
         /// </summary>
-        public virtual void Dispose()
+        /// <param name="disposing">是否也释放托管资源</param>
+        protected override void Dispose(bool disposing)
         {
-            this.RequestMessage.Content?.Dispose();
+#if !NET45 && !NET46
+            this.RequestMessage.Dispose();
+#endif
         }
     }
 }
