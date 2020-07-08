@@ -59,9 +59,11 @@ namespace WebApiClientCore
         public T Get<T>(object key)
         {
 #nullable disable
-            return this.TryGetValue(key, out var value) ?
-                value == null ? default : (T)value :
-                default;
+            if (this.TryGetValue(key, out var value))
+            {
+                return value == null ? default : (T)value;
+            }
+            return default;
 #nullable enable
         }
 
@@ -126,9 +128,9 @@ namespace WebApiClientCore
             {
                 get
                 {
-                    return this.target.lazy.IsValueCreated ?
-                        this.target.lazy.Value.ToArray() :
-                        Array.Empty<KeyValuePair<object, object?>>();
+                    return this.target.lazy.IsValueCreated
+                        ? this.target.lazy.Value.ToArray()
+                        : Array.Empty<KeyValuePair<object, object?>>();
                 }
             }
         }

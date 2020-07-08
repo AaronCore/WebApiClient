@@ -1,9 +1,9 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection.Extensions;
+﻿using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using System;
 using WebApiClientCore;
-using WebApiClientCore.Defaults;
+using WebApiClientCore.ResponseCaches;
+using WebApiClientCore.Serialization;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -13,20 +13,6 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class HttpApiExtensions
     {
         /// <summary>
-        /// 尝试注册默认组件
-        /// </summary>
-        /// <param name="services"></param>
-        private static IServiceCollection AddHttpApi(this IServiceCollection services)
-        {
-            services.AddMemoryCache();
-            services.TryAddSingleton<IXmlFormatter, XmlFormatter>();
-            services.TryAddSingleton<IJsonFormatter, JsonFormatter>();
-            services.TryAddSingleton<IKeyValueFormatter, KeyValueFormatter>();
-            services.TryAddSingleton<IResponseCacheProvider, ResponseCacheProvider>();
-            return services;
-        }
-
-        /// <summary>
         /// 添加HttpApi代理类到服务
         /// </summary>
         /// <typeparam name="THttpApi"></typeparam>
@@ -34,67 +20,137 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <returns></returns>
         public static IHttpClientBuilder AddHttpApi<THttpApi>(this IServiceCollection services) where THttpApi : class
         {
-            return services.AddHttpApi<THttpApi>((o, s) => { });
-        }
-
-        /// <summary>
-        /// 添加HttpApi代理类到服务
-        /// </summary>
-        /// <typeparam name="THttpApi"></typeparam>
-        /// <param name="services"></param>
-        /// <param name="configureOptions"></param>
-        /// <returns></returns>
-        public static IHttpClientBuilder AddHttpApi<THttpApi>(this IServiceCollection services, Action<HttpApiOptions<THttpApi>> configureOptions) where THttpApi : class
-        {
-            return services.AddHttpApi<THttpApi>((o, s) => configureOptions(o));
-        }
-
-        /// <summary>
-        /// 添加HttpApi代理类到服务
-        /// </summary>
-        /// <typeparam name="THttpApi"></typeparam>
-        /// <param name="services"></param>
-        /// <param name="configureOptions"></param>
-        /// <returns></returns>
-        public static IHttpClientBuilder AddHttpApi<THttpApi>(this IServiceCollection services, Action<HttpApiOptions<THttpApi>, IServiceProvider> configureOptions) where THttpApi : class
-        {
-            services
-                .AddHttpApi()
-                .AddOptions<HttpApiOptions<THttpApi>>()
-                .Configure(configureOptions);
+            services.AddOptions();
+            services.AddMemoryCache();
+            services.TryAddSingleton<IXmlSerializer, XmlSerializer>();
+            services.TryAddSingleton<IJsonSerializer, JsonSerializer>();
+            services.TryAddSingleton<IKeyValueSerializer, KeyValueSerializer>();
+            services.TryAddSingleton<IResponseCacheProvider, ResponseCacheProvider>();
 
             return services
                 .AddHttpClient(typeof(THttpApi).FullName)
-                .AddTypedClient((client, serviceProvider) =>
+                .AddTypedClient((httpClient, serviceProvider) =>
                 {
-                    var options = serviceProvider.GetService<IOptions<HttpApiOptions<THttpApi>>>();
-                    return HttpApi.Create<THttpApi>(client, serviceProvider, options.Value);
+                    var name = typeof(THttpApi).FullName;
+                    var httpApiOptions = serviceProvider.GetRequiredService<IOptionsMonitor<HttpApiOptions>>().Get(name);
+                    return HttpApi.Create<THttpApi>(httpClient, serviceProvider, httpApiOptions);
                 });
         }
 
-
         /// <summary>
-        /// 配置HttpApi
+        /// 添加HttpApi代理类到服务
         /// </summary>
         /// <typeparam name="THttpApi"></typeparam>
         /// <param name="services"></param>
-        /// <param name="configureOptions"></param>
+        /// <param name="configureOptions">配置选项</param>
         /// <returns></returns>
-        public static IServiceCollection ConfigureHttpApi<THttpApi>(this IServiceCollection services, Action<HttpApiOptions<THttpApi>> configureOptions)
+        public static IHttpClientBuilder AddHttpApi<THttpApi>(this IServiceCollection services, Action<HttpApiOptions> configureOptions) where THttpApi : class
         {
-            return services.Configure(configureOptions);
+            var name = typeof(THttpApi).FullName;
+            services.AddOptions<HttpApiOptions>(name).Configure(configureOptions);
+            return services.AddHttpApi<THttpApi>();
         }
 
         /// <summary>
-        /// 配置HttpApi
+        /// 添加HttpApi代理类到服务
         /// </summary>
         /// <typeparam name="THttpApi"></typeparam>
         /// <param name="services"></param>
-        /// <param name="configureOptions"></param>
+        /// <param name="configureOptions">配置选项</param>
         /// <returns></returns>
-        public static IServiceCollection ConfigureHttpApi<THttpApi>(this IServiceCollection services, IConfiguration configureOptions)
+        public static IHttpClientBuilder AddHttpApi<THttpApi>(this IServiceCollection services, Action<HttpApiOptions, IServiceProvider> configureOptions) where THttpApi : class
         {
-            return services.Configure<HttpApiOptions<THttpApi>>(configureOptions);
+            var name = typeof(THttpApi).FullName;
+            services.AddOptions<HttpApiOptions>(name).Configure(configureOptions);
+            return services.AddHttpApi<THttpApi>();
+        }
+
+
+        /// <summary>
+        /// 添加HttpApi代理类到服务
+        /// </summary>
+        /// <param name="services"></param>
+        /// <param name="httpApiType">接口类型</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <returns></returns>
+        public static IHttpClientBuilder AddHttpApi(this IServiceCollection services, Type httpApiType)
+        {
+            if (httpApiType == null)
+            {
+                throw new ArgumentNullException(nameof(httpApiType));
+            }
+
+            var builderType = typeof(HttpApiBuilder<>).MakeGenericType(httpApiType);
+            return builderType.CreateInstance<IHttpApiBuilder>(services).AddHttpApi();
+        }
+
+        /// <summary>
+        /// 添加HttpApi代理类到服务
+        /// </summary>
+        /// <param name="services"></param>
+        /// <param name="httpApiType">接口类型</param>
+        /// <param name="configureOptions">配置选项</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <returns></returns>
+        public static IHttpClientBuilder AddHttpApi(this IServiceCollection services, Type httpApiType, Action<HttpApiOptions> configureOptions)
+        {
+            var name = httpApiType.FullName;
+            services.AddOptions<HttpApiOptions>(name).Configure(configureOptions);
+            return services.AddHttpApi(httpApiType);
+        }
+
+        /// <summary>
+        /// 添加HttpApi代理类到服务
+        /// </summary>
+        /// <param name="services"></param>
+        /// <param name="httpApiType">接口类型</param>
+        /// <param name="configureOptions">配置选项</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <returns></returns>
+        public static IHttpClientBuilder AddHttpApi(this IServiceCollection services, Type httpApiType, Action<HttpApiOptions, IServiceProvider> configureOptions)
+        {
+            var name = httpApiType.FullName;
+            services.AddOptions<HttpApiOptions>(name).Configure(configureOptions);
+            return services.AddHttpApi(httpApiType);
+        }
+
+        /// <summary>
+        /// 定义httpApi的Builder的行为
+        /// </summary>
+        private interface IHttpApiBuilder
+        {
+            /// <summary>
+            /// 添加HttpApi代理类到服务
+            /// </summary>
+            /// <returns></returns>
+            IHttpClientBuilder AddHttpApi();
+        }
+
+        /// <summary>
+        /// httpApi的Builder
+        /// </summary>
+        /// <typeparam name="THttpApi"></typeparam>
+        private class HttpApiBuilder<THttpApi> : IHttpApiBuilder where THttpApi : class
+        {
+            private readonly IServiceCollection services;
+
+            /// <summary>
+            /// httpApi的Builder
+            /// </summary>
+            /// <param name="services"></param>
+            public HttpApiBuilder(IServiceCollection services)
+            {
+                this.services = services;
+            }
+
+            /// <summary>
+            /// 添加HttpApi代理类到服务
+            /// </summary> 
+            /// <returns></returns>
+            public IHttpClientBuilder AddHttpApi()
+            {
+                return this.services.AddHttpApi<THttpApi>();
+            }
         }
     }
 }

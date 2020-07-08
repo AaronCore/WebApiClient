@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using WebApiClientCore.HttpContents;
 
 namespace WebApiClientCore.Attributes
 {
@@ -115,7 +115,7 @@ namespace WebApiClientCore.Attributes
             var method = context.ApiAction.Member;
             var categoryName = $"{method.DeclaringType?.Namespace}.{method.DeclaringType?.Name}.{method.Name}";
 
-            var loggerFactory = context.HttpContext.Services.GetService<ILoggerFactory>();
+            var loggerFactory = context.HttpContext.ServiceProvider.GetService<ILoggerFactory>();
             if (loggerFactory == null)
             {
                 return Task.CompletedTask;

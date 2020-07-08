@@ -1,10 +1,16 @@
 ## WebApiClientCore 　　　　　　　　　　　　　　　　　　　
-[WebApiClient.JIT](https://github.com/dotnetcore/WebApiClient/tree/WebApiClient.JITAOT)的netcoreapp版本，集高性能高可扩展性于一体的声明式http客户端库，特别适用于微服务的restful资源请求，也适用于各种畸形http接口请求。
+[WebApiClient](https://github.com/dotnetcore/WebApiClient/tree/WebApiClient.JITAOT)的netcoreapp版本，集高性能高可扩展性于一体的声明式http客户端库，特别适用于微服务的restful资源请求，也适用于各种畸形http接口请求。
 
 ### PackageReference
+#### 主包
+    <PackageReference Include="WebApiClientCore" Version="1.0.*" />
+#### 扩展包
+    <PackageReference Include="WebApiClientCore.Extensions.OAuths" Version="1.0.*" />
+    
+### QQ群
+> [825135345](https://shang.qq.com/wpa/qunwpa?idkey=c6df21787c9a774ca7504a954402c9f62b6595d1e63120eabebd6b2b93007410)
 
-    <PackageReference Include="WebApiClientCore" Version="1.0.0-beta*" />
- 
+*进群注明WebApiClient*
 
 ### Benchmark
 使用[MockResponseHandler](https://github.com/dotnetcore/WebApiClient/tree/master/WebApiClientCore.Benchmarks/Requests)消除真实http请求，原生HttpClient、WebApiClientCore和[Refit](https://github.com/reactiveui/refit)的性能参考：
@@ -18,17 +24,20 @@ Intel Core i3-4150 CPU 3.50GHz (Haswell), 1 CPU, 4 logical and 2 physical cores
 ```
 |                    Method |      Mean |     Error |    StdDev |
 |-------------------------- |----------:|----------:|----------:|
-|       HttpClient_GetAsync |  3.945 μs | 0.2050 μs | 0.5850 μs |
-| WebApiClientCore_GetAsync | 13.320 μs | 0.2604 μs | 0.3199 μs |
-|            Refit_GetAsync | 43.503 μs | 0.8489 μs | 1.0426 μs |
+|       HttpClient_GetAsync |  3.146 μs | 0.0396 μs | 0.0370 μs |
+| WebApiClientCore_GetAsync | 12.421 μs | 0.2324 μs | 0.2174 μs |
+|            Refit_GetAsync | 43.241 μs | 0.6713 μs | 0.6279 μs |
 
-|                     Method |      Mean |     Error |    StdDev |
-|--------------------------- |----------:|----------:|----------:|
-|       HttpClient_PostAsync |  4.876 μs | 0.0972 μs | 0.2092 μs |
-| WebApiClientCore_PostAsync | 14.018 μs | 0.1829 μs | 0.2246 μs |
-|            Refit_PostAsync | 46.512 μs | 0.7885 μs | 0.7376 μs |
+|                         Method |      Mean |     Error |    StdDev |
+|------------------------------- |----------:|----------:|----------:|
+|       HttpClient_PostJsonAsync |  5.263 μs | 0.0784 μs | 0.0733 μs |
+| WebApiClientCore_PostJsonAsync | 13.823 μs | 0.1874 μs | 0.1753 μs |
+|            Refit_PostJsonAsync | 45.218 μs | 0.8166 μs | 0.7639 μs |
 
-
+|                        Method |     Mean |    Error |   StdDev |
+|------------------------------ |---------:|---------:|---------:|
+| WebApiClientCore_PutFormAsync | 21.14 μs | 0.407 μs | 0.418 μs |
+|            Refit_PutFormAsync | 65.16 μs | 0.933 μs | 0.873 μs |
 
 ### 声明式接口定义
 * 支持Task、Task<>和ITask<>三种异步返回
@@ -43,82 +52,90 @@ Intel Core i3-4150 CPU 3.50GHz (Haswell), 1 CPU, 4 logical and 2 physical cores
 这个OpenApi文档在[petstore.swagger.io](https://petstore.swagger.io/)，代码为使用WebApiClientCore.OpenApi.SourceGenerator工具将其OpenApi文档反向生成得到
 
 ```
-namespace Petstore
+/// <summary>
+/// Everything about your Pets
+/// </summary>
+[LoggingFilter]
+[HttpHost("https://petstore.swagger.io/v2/")]
+public interface IPetApi : IHttpApi
 {
     /// <summary>
-    /// Everything about your Pets
+    /// Add a new pet to the store
     /// </summary>
-    [LoggingFilter]
-    [HttpHost("https://petstore.swagger.io/v2/")]
-    public interface IPetApi : IHttpApi
-    {
-        /// <summary>
-        /// Add a new pet to the store
-        /// </summary>
-        /// <param name="body">Pet object that needs to be added to the store</param>
-        [HttpPost("pet")]
-        Task AddPetAsync([Required] [JsonContent] Pet body, CancellationToken token = default);
+    /// <param name="body">Pet object that needs to be added to the store</param>
+    /// <param name="cancellationToken">cancellationToken</param>
+    /// <returns></returns>
+    [HttpPost("pet")]
+    Task AddPetAsync([Required] [JsonContent] Pet body, CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Update an existing pet
-        /// </summary>
-        /// <param name="body">Pet object that needs to be added to the store</param>
-        [HttpPut("pet")]
-        Task<HttpResponseMessage> UpdatePetAsync([Required] [JsonContent] Pet body, CancellationToken token = default);
+    /// <summary>
+    /// Update an existing pet
+    /// </summary>
+    /// <param name="body">Pet object that needs to be added to the store</param>
+    /// <param name="cancellationToken">cancellationToken</param>
+    /// <returns></returns>
+    [HttpPut("pet")]
+    Task UpdatePetAsync([Required] [JsonContent] Pet body, CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Finds Pets by status
-        /// </summary>
-        /// <param name="status">Status values that need to be considered for filter</param>
-        /// <returns>successful operation</returns>
-        [HttpGet("pet/findByStatus")]
-        ITask<List<Pet>> FindPetsByStatusAsync([Required] IEnumerable<Anonymous> status);
+    /// <summary>
+    /// Finds Pets by status
+    /// </summary>
+    /// <param name="status">Status values that need to be considered for filter</param>
+    /// <param name="cancellationToken">cancellationToken</param>
+    /// <returns>successful operation</returns>
+    [HttpGet("pet/findByStatus")]
+    ITask<List<Pet>> FindPetsByStatusAsync([Required] IEnumerable<Anonymous> status, CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Finds Pets by tags
-        /// </summary>
-        /// <param name="tags">Tags to filter by</param>
-        /// <returns>successful operation</returns>
-        [Obsolete]
-        [HttpGet("pet/findByTags")]
-        ITask<List<Pet>> FindPetsByTagsAsync([Required] [PathQuery] IEnumerable<string> tags);
+    /// <summary>
+    /// Finds Pets by tags
+    /// </summary>
+    /// <param name="tags">Tags to filter by</param>
+    /// <param name="cancellationToken">cancellationToken</param>
+    /// <returns>successful operation</returns>
+    [Obsolete]
+    [HttpGet("pet/findByTags")]
+    ITask<List<Pet>> FindPetsByTagsAsync([Required] IEnumerable<string> tags, CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Find pet by ID
-        /// </summary>
-        /// <param name="petId">ID of pet to return</param>
-        /// <returns>successful operation</returns>
-        [HttpGet("pet/{petId}")]
-        ITask<Pet> GetPetByIdAsync([Required] long petId);
+    /// <summary>
+    /// Find pet by ID
+    /// </summary>
+    /// <param name="petId">ID of pet to return</param>
+    /// <param name="cancellationToken">cancellationToken</param>
+    /// <returns>successful operation</returns>
+    [HttpGet("pet/{petId}")]
+    ITask<Pet> GetPetByIdAsync([Required] long petId, CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Updates a pet in the store with form data
-        /// </summary>
-        /// <param name="petId">ID of pet that needs to be updated</param>
-        /// <param name="name">Updated name of the pet</param>
-        /// <param name="status">Updated status of the pet</param>
-        [HttpPost("pet/{petId}")]
-        Task UpdatePetWithFormAsync([Required] long petId, [FormFiled] string name, [FormFiled] string status);
+    /// <summary>
+    /// Updates a pet in the store with form data
+    /// </summary>
+    /// <param name="petId">ID of pet that needs to be updated</param>
+    /// <param name="name">Updated name of the pet</param>
+    /// <param name="status">Updated status of the pet</param>
+    /// <param name="cancellationToken">cancellationToken</param>
+    /// <returns></returns>
+    [HttpPost("pet/{petId}")]
+    Task UpdatePetWithFormAsync([Required] long petId, [FormField] string name, [FormField] string status, CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Deletes a pet
-        /// </summary>
-        /// <param name="api_key"></param>
-        /// <param name="petId">Pet id to delete</param>
-        [HttpDelete("pet/{petId}")]
-        Task DeletePetAsync([Header("api_key")] string api_key, [Required] long petId);
+    /// <summary>
+    /// Deletes a pet
+    /// </summary>
+    /// <param name="api_key"></param>
+    /// <param name="petId">Pet id to delete</param>
+    /// <param name="cancellationToken">cancellationToken</param>
+    /// <returns></returns>
+    [HttpDelete("pet/{petId}")]
+    Task DeletePetAsync([Header("api_key")] string api_key, [Required] long petId, CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// uploads an image
-        /// </summary>
-        /// <param name="petId">ID of pet to update</param>
-        /// <param name="additionalMetadata">Additional data to pass to server</param>
-        /// <param name="file">file to upload</param>
-        /// <returns>successful operation</returns>
-        [LoggingFilter(Enable = false)]
-        [HttpPost("pet/{petId}/uploadImage")]
-        ITask<ApiResponse> UploadFileAsync([Required] long petId, [FormDataText] string additionalMetadata, FormDataFile file);
-    }
+    /// <summary>
+    /// uploads an image
+    /// </summary>
+    /// <param name="petId">ID of pet to update</param>
+    /// <param name="additionalMetadata">Additional data to pass to server</param>
+    /// <param name="file">file to upload</param>
+    /// <param name="cancellationToken">cancellationToken</param>
+    /// <returns>successful operation</returns>
+    [HttpPost("pet/{petId}/uploadImage")]
+    ITask<ApiResponse> UploadFileAsync([Required] long petId, [FormDataText] string additionalMetadata, FormDataFile file, CancellationToken cancellationToken = default);
 }
 ```
 ####  2 IOAuthClient接口例子
@@ -276,14 +293,38 @@ services
 * Pipes // 竖线分隔
 * Multi // 多个同名键的键值对
 
-对于 id = new string []{"001","002"} 这样的值，处理后分别是
-* id=001,002
-* id=001 002
-* id=001\002
-* id=001|002
-* id=001&id=002
+对于 id = new string []{"001","002"} 这样的值，在PathQueryAttribute与FormContentAttribute处理后分别是：
 
-默认的，PathQuryAttribute与FormContentAttribute使用了Multi处理方式，可以设置其CollectionFormat属性为其它值，比如：`[FormContent(CollectionFormat = CollectionFormat.Csv)]`
+CollectionFormat | Data
+---|---
+[PathQuery(CollectionFormat = CollectionFormat.Csv)] | `id=001,002`
+[PathQuery(CollectionFormat = CollectionFormat.Ssv)] | `id=001 002`
+[PathQuery(CollectionFormat = CollectionFormat.Tsv)] | `id=001\002`
+[PathQuery(CollectionFormat = CollectionFormat.Pipes)] | `id=001|002`
+[PathQuery(CollectionFormat = CollectionFormat.Multi)] | `id=001&id=002`
+ 
+
+
+
+### CancellationToken参数
+每个接口都支持声明一个CancellationToken类型的参数，用于支持取消请求操作。CancellationToken.None表示永不取消，创建一个CancellationTokenSource，可以提供一个CancellationToken。
+
+```
+[HttpGet("api/users/{id}")]
+ITask<User> GetAsync([Required]string id, CancellationToken token = default);
+```
+
+### ContentType CharSet
+对于非表单的body内容，默认或缺省时的charset值，对应的是UTF8编码，可以根据服务器要求调整编码。
+
+
+Attribute | ContentType
+---|---
+[JsonContent] | Content-Type: application/json; charset=utf-8
+[JsonContent(CharSet ="utf-8")] | Content-Type: application/json; charset=utf-8
+[JsonContent(CharSet ="unicode")] | Content-Type: application/json; charset=utf-16
+
+
 
 ### Accpet ContentType
 这个用于控制客户端希望服务器返回什么样的内容格式，比如json或xml。
@@ -377,6 +418,39 @@ catch (Exception ex)
     // 异常
 }
 ```
+
+### PATCH请求
+json patch是为客户端能够局部更新服务端已存在的资源而设计的一种标准交互，在RFC6902里有详细的介绍json patch，通俗来讲有以下几个要点：
+
+1. 使用HTTP PATCH请求方法；
+2. 请求body为描述多个opration的数据json内容；
+3. 请求的Content-Type为application/json-patch+json；
+
+#### 声明Patch方法
+```
+[HttpPatch("api/users/{id}")]
+Task<UserInfo> PatchAsync(string id, JsonPatchDocument<User> doc);
+```
+
+#### 实例化JsonPatchDocument
+```
+var doc = new JsonPatchDocument<User>();
+doc.Replace(item => item.Account, "laojiu");
+doc.Replace(item => item.Email, "laojiu@qq.com");
+```
+
+#### 请求内容
+```
+PATCH /api/users/id001 HTTP/1.1
+Host: localhost:6000
+User-Agent: WebApiClientCore/1.0.0.0
+Accept: application/json; q=0.01, application/xml; q=0.01
+Content-Type: application/json-patch+json
+
+[{"op":"replace","path":"/account","value":"laojiu"},{"op":"replace","path":"/email","value":"laojiu@qq.com"}]
+```
+
+
 ### 响应内容缓存
 配置CacheAttribute特性的Method会将本次的响应内容缓存起来，下一次如果符合预期条件的话，就不会再请求到远程服务器，而是从IResponseCacheProvider获取缓存内容，开发者可以自己实现ResponseCacheProvider。
 
@@ -481,10 +555,12 @@ class FaceModel : IApiParameter
         var image2 = GetImageBase64(this.Image2);
         var model = new { image1, image2 };
 
-        var options = context.HttpContext.Options.JsonSerializeOptions;
-        var json = System.Text.Json.JsonSerializer.Serialize(model, options);
-        context.HttpContext.RequestMessage.Content = new StringContent(json, Encoding.UTF8, "application/json");
-        return Task.CompletedTask;
+        var jsonContent = new JsonContent();
+        context.HttpContext.RequestMessage.Content = jsonContent;
+
+        var options = context.HttpContext.HttpApiOptions.JsonSerializeOptions;
+        var serializer = context.HttpContext.ServiceProvider.GetJsonSerializer();
+        serializer.Serialize(jsonContent, model, options);
     }
 
     private static string GetImageBase64(Bitmap image)
@@ -580,8 +656,8 @@ ITask<HttpResponseMessage> GetAsync([Required]string account, [AliasAs("field-Na
 
 字段 | 值
 ---|---
-field1 | abc
-field2 | {"name":"jName","data":{"data1":"jData1"}}
+field1 | someValue
+field2 | {"name":"sb","age":18}
 
 对应强类型模型是
 ```
@@ -591,38 +667,50 @@ class Model
     public string Field2 {get; set;}
 }
 
-```
-我们在构建这个Model的实例时，不得不使用json序列化将field2的实例得到json文本，然后赋值给field2这个string属性，工作量大而且没有约束性。
-
-依托于`JsonString<>`这个类型，现在只要我们把Field2结构声明为强类型模型，然后包装为`JsonString<>`类型，最后为HttpApiOptions添加JsonStringTypeConverter即可。
-
-```
-class Model
-{
-    public string Filed1 {get; set;}
-    public JsonString<Field2Info> Field2 {get; set;}
-}
-
-class Field2Info
+class Field2
 {
     public string Name {get; set;}
-    public Field2Data data {get; set;}
+    
+    public int Age {get; set;}
 }
+```
+我们在构建这个Model的实例时，不得不使用json序列化将field2的实例得到json文本，然后赋值给field2这个string属性。使用[JsonFormField]特性可以轻松帮我们自动完成Field2类型的json序列化并将结果字符串作为表单的一个字段。
+ 
 
-class Field2Data
+```
+public interface IMyApi
 {
-    public string data1 {get; set;}
+    Task PostAsync([FormField] string field1, [JsonFormField] Field2 field2)
 }
-
-
-// 添加转换器 
-services
-    .AddHttpApi<IMyApi>(o =>
-    {
-        o.HttpHost = new Uri("http://localhost:6000/");
-        o.KeyValueSerializeOptions.Converters.Add(JsonStringTypeConverter.Default);
-    }); 
 ``` 
+
+#### Form提交嵌套的模型
+
+字段 | 值
+---|---|
+|filed1 |someValue|
+|field2.name | sb|
+|field2.age | 18|
+
+其对应的json格式为
+```
+{
+    "field1" : "someValue",
+    "filed2" : {
+        "name" : "sb",
+        "age" : 18
+    }
+}
+```
+合理情况下，对于复杂嵌套结构的数据模型，应当使用applicaiton/json，但接口要求必须使用Form提交，我可以配置KeyValueSerializeOptions来达到这个格式要求：
+
+```
+// 注册userApi
+services.AddHttpApi<IUserApi>(o =>
+{
+    o.KeyValueSerializeOptions.KeyNamingStyle = KeyNamingStyle.FullName;
+});
+```
 
 #### 响应未指明ContentType
 明明响应的内容肉眼看上是json内容，但服务响应头里没有ContentType告诉客户端这内容是json，这好比客户端使用Form或json提交时就不在请求头告诉服务器内容格式是什么，而是让服务器猜测一样的道理。
@@ -635,7 +723,7 @@ public interface IJsonResponseApi : IHttpApi
 {
 }
 ```
-#### 类签名参数或token参数
+#### 类签名参数或apikey参数
 例如每个请求的url额外的动态添加一个叫sign的参数，这个sign可能和请求参数值有关联，每次都需要计算。
 
 我们可以自定义ApiFilterAttribute来实现自己的sign功能，然后把自定义Filter声明到Interface或Method即可
@@ -748,19 +836,8 @@ public interface IMyApi
 }
 ```
 
-#### 3 其它操作
-> 清空Token，未过期的token也强制刷新
-
-```
-var providers = serviceProvider.GetServices<ITokenProvider>();
-foreach(var item in providers)
-{
-    // 强制清除token以支持下次获取到新的token
-    item.ClearToken();
-}
-```
-
-> 自定义Token应用，得到token值，怎么用自己说了算
+#### 3 自定义Token应用
+得到token值之后，怎么具体应用自己说了算
 
 ```
 class MyTokenAttribute : ClientCredentialsTokenAttribute

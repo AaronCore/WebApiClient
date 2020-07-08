@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using WebApiClientCore.HttpContents;
 
 namespace WebApiClientCore.Attributes
 {
@@ -8,6 +9,11 @@ namespace WebApiClientCore.Attributes
     /// </summary>
     public class XmlReturnAttribute : ApiReturnAttribute
     {
+        /// <summary>
+        /// text/xml
+        /// </summary>
+        private static readonly MediaTypeHeaderValue textXml = new MediaTypeHeaderValue("text/xml");
+
         /// <summary>
         /// json内容的结果特性
         /// </summary>
@@ -23,6 +29,17 @@ namespace WebApiClientCore.Attributes
         public XmlReturnAttribute(double acceptQuality)
             : base(new MediaTypeWithQualityHeaderValue(XmlContent.MediaType, acceptQuality))
         {
+        }
+
+        /// <summary>
+        /// 指示响应的ContentType与AcceptContentType是否匹配
+        /// 返回false则调用下一个ApiReturnAttribute来处理响应结果
+        /// </summary>
+        /// <param name="responseContentType">响应的ContentType</param>
+        /// <returns></returns>
+        protected override bool IsMatchAcceptContentType(MediaTypeHeaderValue? responseContentType)
+        {
+            return base.IsMatchAcceptContentType(responseContentType) || base.IsMatchAcceptContentType(textXml);
         }
 
         /// <summary>
