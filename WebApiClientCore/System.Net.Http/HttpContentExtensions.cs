@@ -1,5 +1,8 @@
-﻿using System.Text;
+﻿using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
+using WebApiClientCore;
+using WebApiClientCore.Exceptions;
 
 namespace System.Net.Http
 {
@@ -8,6 +11,47 @@ namespace System.Net.Http
     /// </summary>
     public static class HttpContentExtensions
     {
+        /// <summary>
+        /// IsBuffered字段
+        /// </summary>
+        private static readonly Func<HttpContent, bool>? isBuffered;
+
+        /// <summary>
+        /// 静态构造器
+        /// </summary>
+        static HttpContentExtensions()
+        {
+            var property = typeof(HttpContent).GetProperty("IsBuffered", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (property != null)
+            {
+                isBuffered = Lambda.CreateGetFunc<HttpContent, bool>(property);
+            }
+        }
+
+        /// <summary>
+        /// 获取是否已缓存数据 
+        /// </summary>
+        /// <param name="httpContent"></param>
+        /// <returns></returns>
+        public static bool? IsBuffered(this HttpContent httpContent)
+        {
+            return isBuffered?.Invoke(httpContent);
+        }
+
+        /// <summary>
+        /// 确保httpContent的内容未被缓存
+        /// 已被缓存则抛出HttpContentBufferedException
+        /// </summary>
+        /// <param name="httpContent"></param>
+        /// <exception cref="HttpContentBufferedException"></exception>
+        public static void EnsureNotBuffered(this HttpContent httpContent)
+        {
+            if (httpContent.IsBuffered() == true)
+            {
+                throw new HttpContentBufferedException();
+            }
+        }
+
         /// <summary>
         /// 读取为二进制数组并转换为utf8编码
         /// </summary>

@@ -50,7 +50,7 @@ namespace WebApiClientCore.HttpContents
                 return new FormContent();
             }
 
-            if (httpContent is FormContent formContent)
+            if (httpContent is FormContent formContent && formContent.IsBuffered() == false)
             {
                 return formContent;
             }
@@ -72,6 +72,8 @@ namespace WebApiClientCore.HttpContents
         /// <param name="keyValues">键值对</param>
         public void AddFormField(IEnumerable<KeyValue> keyValues)
         {
+            this.EnsureNotBuffered();
+
             if (keyValues == null)
             {
                 return;
@@ -111,6 +113,8 @@ namespace WebApiClientCore.HttpContents
         /// <param name="encodedForm">数据内容</param>
         private void AddForm(byte[] encodedForm)
         {
+            this.EnsureNotBuffered();
+
             if (encodedForm == null || encodedForm.Length == 0)
             {
                 return;
@@ -148,8 +152,8 @@ namespace WebApiClientCore.HttpContents
         /// <summary>
         /// 序列化到目标流中
         /// </summary>
-        /// <param name="stream">目标流</param>
-        /// <param name="context">上下文</param>
+        /// <param name="stream"></param>
+        /// <param name="context"></param>
         /// <returns></returns>
         protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
         {
