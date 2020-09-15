@@ -36,6 +36,11 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         public sealed async override Task OnRequestAsync(ApiRequestContext context)
         {
+            if (context.HttpContext.HttpApiOptions.UseLogging == false)
+            {
+                return;
+            }
+
             var logMessage = new LogMessage
             {
                 RequestTime = DateTime.Now,
@@ -61,8 +66,17 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         public sealed async override Task OnResponseAsync(ApiResponseContext context)
         {
+            if (context.HttpContext.HttpApiOptions.UseLogging == false)
+            {
+                return;
+            }
+
             var response = context.HttpContext.ResponseMessage;
             var logMessage = context.Properties.Get<LogMessage>(typeof(LoggingFilterAttribute));
+            if (logMessage == null)
+            {
+                return;
+            }
 
             logMessage.ResponseTime = DateTime.Now;
             logMessage.Exception = context.Exception;
@@ -112,20 +126,23 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         protected virtual Task WriteLogAsync(ApiResponseContext context, LogMessage logMessage)
         {
-            var method = context.ApiAction.Member;
-            var categoryName = $"{method.DeclaringType?.Namespace}.{method.DeclaringType?.Name}.{method.Name}";
-
             var loggerFactory = context.HttpContext.ServiceProvider.GetService<ILoggerFactory>();
             if (loggerFactory == null)
             {
                 return Task.CompletedTask;
             }
 
+            var method = context.ApiAction.Member;
+            var categoryName = $"{method.DeclaringType?.Namespace}.{method.DeclaringType?.Name}.{method.Name}";
             var logger = loggerFactory.CreateLogger(categoryName);
-            logger.LogInformation(logMessage.ToExcludeException().ToString());
-            if (logMessage.Exception != null)
+
+            if (logMessage.Exception == null)
             {
-                logger.LogError(logMessage.Exception, logMessage.Exception.Message);
+                logger.LogInformation(logMessage.ToString());
+            }
+            else
+            {
+                logger.LogError(logMessage.ToString());
             }
 
             return Task.CompletedTask;

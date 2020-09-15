@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace WebApiClientCore
@@ -24,8 +25,9 @@ namespace WebApiClientCore
                 return str;
             }
 
+            var destLength = 0;
             var source = encoding.GetBytes(str).AsSpan();
-            if (UrlEncodeTest(source, out var destLength) == false)
+            if (UrlEncodeTest(source, ref destLength) == false)
             {
                 return str;
             }
@@ -48,8 +50,9 @@ namespace WebApiClientCore
                 return;
             }
 
+            var destLength = 0;
             var source = Encoding.UTF8.GetBytes(str).AsSpan();
-            if (UrlEncodeTest(source, out var destLength) == false)
+            if (UrlEncodeTest(source, ref destLength) == false)
             {
                 var destination = bufferWriter.GetSpan(destLength);
                 source.CopyTo(destination);
@@ -69,7 +72,7 @@ namespace WebApiClientCore
         /// </summary>
         /// <param name="source">源</param>
         /// <param name="destLength">编码后的长度</param> 
-        private static bool UrlEncodeTest(ReadOnlySpan<byte> source, out int destLength)
+        private static bool UrlEncodeTest(ReadOnlySpan<byte> source, ref int destLength)
         {
             destLength = 0;
             if (source.IsEmpty == true)
@@ -132,6 +135,7 @@ namespace WebApiClientCore
         /// </summary>
         /// <param name="ch"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool IsUrlSafeChar(char ch)
         {
             if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9'))
@@ -160,6 +164,7 @@ namespace WebApiClientCore
         /// </summary>
         /// <param name="n"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static char ToCharLower(int n)
         {
             n &= 0xF;
