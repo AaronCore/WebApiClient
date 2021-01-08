@@ -5,17 +5,17 @@ using WebApiClientCore.HttpContents;
 namespace WebApiClientCore.Attributes
 {
     /// <summary>
-    /// 表示json内容的结果特性
+    /// 表示xml内容的结果特性
     /// </summary>
     public class XmlReturnAttribute : ApiReturnAttribute
     {
         /// <summary>
         /// text/xml
         /// </summary>
-        private static readonly MediaTypeHeaderValue textXml = new MediaTypeHeaderValue("text/xml");
+        private static readonly string textXml = "text/xml";
 
         /// <summary>
-        /// json内容的结果特性
+        /// xml内容的结果特性
         /// </summary>
         public XmlReturnAttribute()
             : base(new MediaTypeWithQualityHeaderValue(XmlContent.MediaType))
@@ -23,7 +23,7 @@ namespace WebApiClientCore.Attributes
         }
 
         /// <summary>
-        /// json内容的结果特性
+        /// xml内容的结果特性
         /// </summary>
         /// <param name="acceptQuality">accept的质比</param>
         public XmlReturnAttribute(double acceptQuality)
@@ -39,7 +39,7 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         protected override bool IsMatchAcceptContentType(MediaTypeHeaderValue? responseContentType)
         {
-            return base.IsMatchAcceptContentType(responseContentType) || base.IsMatchAcceptContentType(textXml);
+            return base.IsMatchAcceptContentType(responseContentType) || MediaType.IsMatch(textXml, responseContentType?.MediaType);
         }
 
         /// <summary>

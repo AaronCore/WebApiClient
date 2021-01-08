@@ -30,7 +30,7 @@ namespace App.Clients
 
 
         [HttpGet("api/users/{account}")]
-        [XmlReturn]
+        [XmlReturn] 
         ITask<string> GetExpectXmlAsync([Required] string account, CancellationToken token = default);
 
 
@@ -38,7 +38,7 @@ namespace App.Clients
         [HttpGet("api/users/{account}")]
         ITask<byte[]> GetAsByteArrayAsync([Required] string account, CancellationToken token = default);
 
-        [HttpGet("api/users/{account}")]
+        [HttpGet("api/users/{account}")] 
         ITask<Stream> GetAsStreamAsync([Required] string account, CancellationToken token = default);
 
         [HttpGet("api/users/{account}")]
