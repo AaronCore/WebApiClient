@@ -8,7 +8,12 @@ namespace WebApiClientCore.Attributes
 {
     /// <summary>
     /// 表示token应用特性
+    /// 需要为接口或接口的基础接口注册TokenProvider
     /// </summary> 
+    /// <remarks>
+    /// <para>• Client模式：services.AddClientCredentialsTokenProvider</para>
+    /// <para>• Password模式：services.AddPasswordCredentialsTokenProvider</para>
+    /// </remarks>
     public class OAuthTokenAttribute : ApiFilterAttribute
     {
         /// <summary>
@@ -23,8 +28,7 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         public sealed override async Task OnRequestAsync(ApiRequestContext context)
         {
-            var provider = this.GetTokenProvider(context);
-            var token = await provider.GetTokenAsync().ConfigureAwait(false);
+            var token = await this.GetTokenProvider(context).GetTokenAsync().ConfigureAwait(false);
             this.UseTokenResult(context, token);
         }
 
@@ -37,8 +41,7 @@ namespace WebApiClientCore.Attributes
         {
             if (this.IsUnauthorized(context) == true)
             {
-                var provider = this.GetTokenProvider(context);
-                provider.ClearToken();
+                this.GetTokenProvider(context).ClearToken();
             }
             return Task.CompletedTask;
         }
@@ -51,7 +54,7 @@ namespace WebApiClientCore.Attributes
         protected virtual ITokenProvider GetTokenProvider(ApiRequestContext context)
         {
             var factory = context.HttpContext.ServiceProvider.GetRequiredService<ITokenProviderFactory>();
-            return factory.Create(context.ApiAction.InterfaceType, this.TokenProviderSearchMode);
+            return factory.Create(context.ActionDescriptor.InterfaceType, this.TokenProviderSearchMode);
         }
 
         /// <summary>

@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using WebApiClientCore.HttpContents;
+using WebApiClientCore.Internals;
 
 namespace WebApiClientCore.Attributes
 {
@@ -37,9 +38,10 @@ namespace WebApiClientCore.Attributes
         /// </summary>
         /// <param name="responseContentType">响应的ContentType</param>
         /// <returns></returns>
-        protected override bool IsMatchAcceptContentType(MediaTypeHeaderValue? responseContentType)
+        protected override bool IsMatchAcceptContentType(MediaTypeHeaderValue responseContentType)
         {
-            return base.IsMatchAcceptContentType(responseContentType) || MediaType.IsMatch(textXml, responseContentType?.MediaType);
+            return base.IsMatchAcceptContentType(responseContentType) 
+                || MediaTypeUtil.IsMatch(textXml, responseContentType.MediaType);
         }
 
         /// <summary>
@@ -49,7 +51,7 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         public override async Task SetResultAsync(ApiResponseContext context)
         {
-            var resultType = context.ApiAction.Return.DataType.Type;
+            var resultType = context.ActionDescriptor.Return.DataType.Type;
             context.Result = await context.XmlDeserializeAsync(resultType).ConfigureAwait(false);
         }
     }

@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using WebApiClientCore.Exceptions;
+using WebApiClientCore.Internals;
 
 namespace WebApiClientCore.Attributes
 {
     /// <summary>
     /// 使用KeyValueSerializer序列化参数值得到的键值对作为url路径参数或query参数的特性
-    /// 没有任何特性修饰的参数，将默认被PathQueryAttribute修饰
     /// </summary>
     public class PathQueryAttribute : ApiParameterAttribute, ICollectionFormatable
     {
@@ -53,15 +53,16 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         protected virtual Uri CreateUri(Uri uri, IEnumerable<KeyValue> keyValues)
         {
-            var editor = new UriEditor(uri);
+            var uriValue = new UriValue(uri);
             foreach (var keyValue in keyValues)
             {
-                if (editor.Replace(keyValue.Key, keyValue.Value) == false)
+                uriValue = uriValue.Replace(keyValue.Key, keyValue.Value, out var replaced);
+                if (replaced == false)
                 {
-                    editor.AddQuery(keyValue.Key, keyValue.Value);
+                    uriValue = uriValue.AddQuery(keyValue.Key, keyValue.Value);
                 }
             }
-            return editor.Uri;
+            return uriValue.ToUri();
         }
     }
 }

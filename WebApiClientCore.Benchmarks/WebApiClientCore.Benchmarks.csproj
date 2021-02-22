@@ -1,31 +1,22 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>    
-    <OutputType>Exe</OutputType>    
-    <SignAssembly>true</SignAssembly>    
-    <AssemblyOriginatorKeyFile>Sign.snk</AssemblyOriginatorKeyFile> 
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net5.0</TargetFramework>
+		<OutputType>Exe</OutputType>
+		<SignAssembly>true</SignAssembly>
+		<AssemblyOriginatorKeyFile>Sign.snk</AssemblyOriginatorKeyFile>
 
-  <ItemGroup>
-    <Compile Remove="Buffers\**" />
-    <Compile Remove="CreateInstances\**" />
-    <Compile Remove="StringReplaces\**" />
-    <EmbeddedResource Remove="Buffers\**" />
-    <EmbeddedResource Remove="CreateInstances\**" />
-    <EmbeddedResource Remove="StringReplaces\**" />
-    <None Remove="Buffers\**" />
-    <None Remove="CreateInstances\**" />
-    <None Remove="StringReplaces\**" />
-  </ItemGroup>
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" Version="0.12.1" />
-    <PackageReference Include="Refit.HttpClientFactory" Version="5.1.67" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="BenchmarkDotNet" Version="0.12.1" />
+		<PackageReference Include="Refit.HttpClientFactory" Version="5.2.4" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\WebApiClientCore\WebApiClientCore.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\WebApiClientCore\WebApiClientCore.csproj" />
+	</ItemGroup>
 
 </Project>

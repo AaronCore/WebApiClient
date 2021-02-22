@@ -57,8 +57,6 @@ namespace WebApiClientCore.Attributes
             context.Properties.Set(typeof(LoggingFilterAttribute), logMessage);
         }
 
-
-
         /// <summary>
         /// 响应后
         /// </summary>
@@ -70,8 +68,7 @@ namespace WebApiClientCore.Attributes
             {
                 return;
             }
-
-            var response = context.HttpContext.ResponseMessage;
+                        
             var logMessage = context.Properties.Get<LogMessage>(typeof(LoggingFilterAttribute));
             if (logMessage == null)
             {
@@ -81,6 +78,7 @@ namespace WebApiClientCore.Attributes
             logMessage.ResponseTime = DateTime.Now;
             logMessage.Exception = context.Exception;
 
+            var response = context.HttpContext.ResponseMessage;
             if (this.LogResponse && response != null)
             {
                 logMessage.HasResponse = true;
@@ -96,7 +94,7 @@ namespace WebApiClientCore.Attributes
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>
-        private async Task<string?> ReadRequestContentAsync(HttpRequestMessage request)
+        private async Task<string?> ReadRequestContentAsync(HttpApiRequestMessage request)
         {
             if (request.Content == null)
             {
@@ -137,15 +135,11 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         protected virtual Task WriteLogAsync(ApiResponseContext context, LogMessage logMessage)
         {
-            var loggerFactory = context.HttpContext.ServiceProvider.GetService<ILoggerFactory>();
-            if (loggerFactory == null)
+            var logger = context.GetLogger();
+            if (logger == null)
             {
                 return Task.CompletedTask;
-            }
-
-            var method = context.ApiAction.Member;
-            var categoryName = $"{method.DeclaringType?.Namespace}.{method.DeclaringType?.Name}.{method.Name}";
-            var logger = loggerFactory.CreateLogger(categoryName);
+            }  
 
             if (logMessage.Exception == null)
             {

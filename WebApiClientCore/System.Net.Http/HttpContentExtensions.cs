@@ -1,8 +1,8 @@
 ﻿using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using WebApiClientCore;
 using WebApiClientCore.Exceptions;
+using WebApiClientCore.Internals;
 
 namespace System.Net.Http
 {
@@ -24,7 +24,7 @@ namespace System.Net.Http
             var property = typeof(HttpContent).GetProperty("IsBuffered", BindingFlags.Instance | BindingFlags.NonPublic);
             if (property != null)
             {
-                isBuffered = Lambda.CreateGetFunc<HttpContent, bool>(property);
+                isBuffered = LambdaUtil.CreateGetFunc<HttpContent, bool>(property);
             }
         }
 

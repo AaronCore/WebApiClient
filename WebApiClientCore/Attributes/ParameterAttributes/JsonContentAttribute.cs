@@ -33,19 +33,8 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         protected override Task SetHttpContentAsync(ApiParameterContext context)
         {
-            var jsonContent = new JsonContent();
-            context.HttpContext.RequestMessage.Content = jsonContent;
-            jsonContent.Headers.ContentType.CharSet = this.encoding.WebName;
-
-            if (Encoding.UTF8.Equals(this.encoding) == true)
-            {
-                context.SerializeToJson(jsonContent);
-            }
-            else
-            {
-                var json = context.SerializeToJson(this.encoding);
-                jsonContent.Write(json);
-            }
+            var options = context.HttpContext.HttpApiOptions.JsonSerializeOptions;
+            context.HttpContext.RequestMessage.Content = new JsonContent(context.ParameterValue, options, this.encoding);
             return Task.CompletedTask;
         }
     }

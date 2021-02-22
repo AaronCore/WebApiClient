@@ -44,8 +44,14 @@ namespace App
             // 添加控制器
             services.AddControllers().AddXmlSerializerFormatters();
 
+            // 应用编译时生成接口的代理类型代码
+            services
+                .AddWebApiClient()
+                .UseJsonFirstApiActionDescriptor()
+                .UseSourceGeneratorHttpApiActivator();
+
             // 注册userApi
-            services.AddHttpApi<IUserApi>(o =>
+            services.AddHttpApi(typeof(IUserApi), o =>
             {
                 o.UseLogging = Environment.IsDevelopment();
                 o.HttpHost = new Uri("http://localhost:5000/");
@@ -57,7 +63,7 @@ namespace App
                 o.Endpoint = new Uri("http://localhost:5000/api/tokens");
                 o.Credentials.Client_id = "clientId";
                 o.Credentials.Client_secret = "xxyyzz";
-            }); 
+            });
 
             // userApi客户端后台服务
             services.AddScoped<UserService>().AddHostedService<UserHostedService>();
